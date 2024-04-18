@@ -27,13 +27,18 @@ memory.size(999999999999)
 
 # Input Files
 # 1 normal friction
-friction.filename <- 'friction_surface_2015_v1.0.tif'
+##friction.filename <- 'friction_surface_2015_v1.0.tif'
 # 2 uniform walking friction
 #friction.filename <- 'friction_surface_v47_uniform_walking.tif'
-friction <- raster(friction.filename)
+##friction <- raster(friction.filename)
 
+library(malariaAtlas)
+library(terra)
+
+friction_sr <- malariaAtlas::getRaster("Explorer__2020_walking_only_friction_surface", file_path = "data/")
+friction <- friction_sr |> raster()
 # Just 5 columns.  Structured as [zones, right,left,bottom,top] Use a header.
-zones.filename <- 'zones.csv'
+zones.filename <- 'global_access_map_Rscript/zones.csv'
 # Read in the zones table
 zones <- read.csv(file = zones.filename)
 

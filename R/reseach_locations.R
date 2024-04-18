@@ -63,4 +63,23 @@ res_dist <- list.files(
     overwrite = TRUE
   )
 
+
+writeRaster(
+  x = res_dist,
+  filename = "output/res_dist_all.tif"
+)
+
 plot(res_dist)
+
+mask_v <- make_africa_mask(type = "vector")
+
+
+library(gstat)
+library(sp)
+data(meuse)
+
+### inverse distance weighted (IDW)
+r <- rast(system.file("ex/meuse.tif", package="terra"))
+mg <- gstat(id = "zinc", formula = zinc~1, locations = ~x+y, data=meuse,
+            nmax=7, set=list(idp = .5))
+z <- interpolate(res_dist, mg, debug.level=0, index=1)
