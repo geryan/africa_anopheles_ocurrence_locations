@@ -1,0 +1,72 @@
+Continuing the affiliation cleanup, fourth session. Read CLAUDE.md — the "Where this is
+up to" section is the current state and is accurate as of the end of the last session.
+Read the "Start here" section of NEXT_STEPS.md only for the sheet mechanics (§1); its
+counts are two sessions out of date, so trust CLAUDE.md over them. Do not read anything
+else to get oriented, and do not re-audit the project.
+
+FIRST ACTION, before anything else: the build is not clean. Two dead `coordinate`
+decisions report no_match and verify ends `41 checks, 2 failed` —
+
+  [no_match] coordinate | 'CIRAD France'   -> no affiliation_simple by that name
+  [no_match] coordinate | 'MIVEGEC France' -> no affiliation_simple by that name
+
+Both labels were merged into `MIVEGEC / CIRAD / LIN Montpellier` last session, but their
+sheet rows were still ticked yes, so coord_review.R reclassified them to case = manual —
+exempt from the merged-away guard — and re-wrote the decisions after I deleted them from
+the CSV. Read data/coord_review.xlsx with openpyxl, confirm which rows now hold
+`CIRAD France` and `MIVEGEC France` with accepted = yes (they were A101 and A107, but row
+numbers shift when the sheet is rebuilt), and tell me the cell references to blank. I
+blank them, not you. Deleting the decisions from the CSV alone does not work — the sheet
+puts them straight back.
+
+Where I am: steps 0 and 2 are done. Step 1 is part done — 99 decisions, 97 applying,
+366 labels at 256 ok / 52 decided / 40 missing / 18 absent / 0 conflict. The sheet is
+128 rows over 93 labels, 54 settled, 39 open. Once the two cells are blanked, expect
+97 decisions all applying and `41 checks, 0 failed`; the label counts do not change.
+
+All the same_coord_group duplicates are resolved; group 3 (Equatorial Guinea) was
+deliberately kept separate, do not re-merge it.
+
+What is left after the fix is the 39 open `missing` rows — ordinary one-at-a-time
+coordinate calls.
+
+Also open, not started: output/review_coord_sanity.csv holds 24 coordinates that fall
+outside the country their affiliation names, found by R/check_coord_sanity.R last
+session. Nothing in it has been acted on. Do not start on it unless I ask. It is sorted
+worst-first and every row has a Google Maps link. Note its blind spot — it cannot see a
+coordinate that is in the right country but the wrong place, which is how the LIN labels
+sat 98 km from Montpellier undetected.
+
+Never read these, they are huge and irrelevant: data/vector_extraction_data.csv,
+output/diff_report_*.csv, output/review_encoding_repairs.csv,
+output/review_simple_lumping.csv, and any .tif/.geotiff/.zip. Use grep or head on the
+review CSVs; never cat one whole.
+
+Start by running `Rscript R/coord_review.R`, then
+`python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py`, and tell me the
+counts and the two failures. Then wait — I fill in column A of data/coord_review.xlsx
+myself. Never put yes/no in the sheet for me. Every time I tell you I have edited the
+sheet and re-run coord_review.R, rebuild and verify and report the counts and anything
+that did not apply.
+
+How to answer when I ask about a label:
+
+- Look that label up with grep in output/proposed_coords_missing88_20260818.csv or
+  output/review_coord_conflicts.csv, and answer from that plus a web search if the
+  institution is unclear.
+- Do not volunteer opinions on labels I have not asked about — EXCEPT that when I name
+  a label to merge or rename, you must also list every other label naming the same
+  institution, place or acronym, with row counts, coordinates and coord_status. Those
+  are facts I cannot see, because the sheet only shows `missing` and `conflict` rows.
+  Give them as a short block after doing what I asked, with no recommendation.
+- Typos, institution identity and coordinate choices are my calls. Surface them, do not
+  settle them. If I write a label name that looks like a slip, ask before writing it
+  into a deliverable.
+
+Apply my decisions by appending to data/affiliation_decisions.csv, then rebuild and
+verify. Renames must name their final destination rather than chaining through a label
+that earlier renames created, or the chained row reports no_match and verify fails.
+A label_rename strands any coordinate decision targeting the old name — remove the dead
+decision, AND find the ticked sheet row and tell me which cell to blank. Do not assume
+the script's merged-away guard will clean it up; it will not, that is what broke this
+session's last rebuild.
