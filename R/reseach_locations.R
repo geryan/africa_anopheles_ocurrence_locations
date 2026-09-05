@@ -26,9 +26,6 @@ locs_v <- vect(
 
 
 
-locs_v |>
-  terra::crop(africa_mask, mask = TRUE)
-
 write_csv(
   x = locs,
   file = sprintf(
@@ -68,6 +65,8 @@ writeRaster(
   x = res_dist,
   filename = "output/res_dist_all.tif"
 )
+
+res_dist <- rast("output/res_dist_all.tif")
 
 plot(res_dist)
 
