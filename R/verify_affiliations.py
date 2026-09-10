@@ -13,13 +13,28 @@ orig = pd.read_excel(f'{SRC}/data/twatasha_final_data/Affiliation spreadsheet_ve
 orig.columns = [c.strip() for c in orig.columns]
 orig = orig.rename(columns={'affiliation - original': 'affiliation_original'})
 
+# Rows appended from data/added_affiliations.csv are not in the spreadsheet, so
+# every count taken off `orig` has to allow for them.
+f_add = f'{SRC}/data/added_affiliations.csv'
+if os.path.exists(f_add):
+    ADD = pd.read_csv(f_add, dtype=str).fillna('')
+    ADD = ADD[ADD.source_citation.str.strip() != '']
+else:
+    ADD = pd.DataFrame(columns=['source_citation', 'affiliation', 'affiliation_simple'])
+N_ADDED = len(ADD)
+def added_nonnull(col):
+    if col not in ADD.columns: return 0
+    return int((ADD[col].str.strip() != '').sum())
+
 ok = []
 def check(name, cond, detail=''):
     ok.append((name, bool(cond), detail))
     print(('PASS  ' if cond else 'FAIL  ') + name + (('  ' + detail) if detail else ''))
 
 # --- shape ---------------------------------------------------------------
-check('deliverable 1 has 1273 rows (one per original xlsx row)', len(D1) == 1273, f'{len(D1)}')
+check(f'deliverable 1 has {1273 + N_ADDED} rows (1273 xlsx rows'
+      + (f' + {N_ADDED} from added_affiliations.csv)' if N_ADDED else ')'),
+      len(D1) == 1273 + N_ADDED, f'{len(D1)}')
 check('column set unchanged',
       list(D1.columns) == ['source_citation', 'n', 'affiliation_original',
                            'affiliation', 'affiliation_simple'])
@@ -32,8 +47,12 @@ check('every source_citation is a verbatim twatasha_todo.csv value',
 nmap = dict(zip(todo.source_citation, todo.n))
 bad_n = (D1.n.astype(str) != D1.source_citation.map(nmap).astype(str)).sum()
 check('n agrees with twatasha_todo.csv on every row', bad_n == 0, f'{bad_n} mismatches')
-check('541 of 542 todo sources represented',
-      D1.source_citation.nunique() == 541, str(D1.source_citation.nunique()))
+# 541 of the 542 todo sources had an affiliation in version 3; the 542nd
+# (Diop et al. 2002) is supplied by data/added_affiliations.csv, so the target
+# rises as rows are added there.
+n_src_expected = 541 + ADD.source_citation.nunique()
+check(f'{n_src_expected} of 542 todo sources represented',
+      D1.source_citation.nunique() == n_src_expected, str(D1.source_citation.nunique()))
 check('no blank source_citation remains', D1.source_citation.notna().all())
 
 # --- damage eradicated ----------------------------------------------------
@@ -184,9 +203,11 @@ for d in drift[:10]:
 
 # --- no content lost -----------------------------------------------------
 for col in ['affiliation', 'affiliation_simple', 'affiliation_original']:
+    expect = orig[col].notna().sum() + added_nonnull(col)
     check(f'{col} non-null count preserved',
-          orig[col].notna().sum() == D1[col].notna().sum(),
-          f'{orig[col].notna().sum()} -> {D1[col].notna().sum()}')
+          expect == D1[col].notna().sum(),
+          f'{expect} -> {D1[col].notna().sum()}'
+          + (f' (incl. {added_nonnull(col)} added)' if added_nonnull(col) else ''))
 
 print('\n%d checks, %d failed' % (len(ok), sum(1 for _, c, _ in ok if not c)))
 raise SystemExit(1 if any(not c for _, c, _ in ok) else 0)

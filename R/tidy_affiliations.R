@@ -179,6 +179,34 @@ v3 <- read_excel("data/twatasha_final_data/Affiliation spreadsheet_version 3. 26
   select(source_citation, n, affiliation_original, affiliation, affiliation_simple) %>%
   mutate(row_xlsx = row_number() + 1L)
 
+# Papers in twatasha_todo.csv that version 3 never gave an affiliation cannot be
+# fixed by a decision - there is no row to decide about. They are appended from
+# data/added_affiliations.csv so the source spreadsheet stays the artefact it was
+# delivered as, and row_xlsx from 90001 up marks a row as coming from that file.
+# Mirrors tidy_affiliations.py; like the rest of this file, never executed.
+F_ADD <- "data/added_affiliations.csv"
+N_ADDED <- 0L
+if (file.exists(F_ADD)) {
+  add <- read_csv(F_ADD, col_types = cols(.default = "c")) %>%
+    mutate(across(everything(), ~ ifelse(is.na(.x), "", .x))) %>%
+    filter(str_trim(source_citation) != "")
+  need <- setdiff(c("source_citation", "affiliation", "affiliation_simple",
+                    "note", "added_on"), names(add))
+  if (length(need))
+    stop(F_ADD, " is missing columns: ", paste(need, collapse = ", "), call. = FALSE)
+  if (nrow(add)) {
+    na_if_blank <- function(x) ifelse(str_trim(x) == "", NA_character_, x)
+    v3 <- bind_rows(v3, tibble(
+      source_citation      = add$source_citation,
+      n                    = NA_character_,
+      affiliation_original = NA_character_,
+      affiliation          = na_if_blank(add$affiliation),
+      affiliation_simple   = na_if_blank(add$affiliation_simple),
+      row_xlsx             = seq_len(nrow(add)) + 90000L))
+    N_ADDED <- nrow(add)
+  }
+}
+
 orig <- v3
 todo <- read_csv("output/twatasha_todo.csv", col_types = cols(.default = "c"))
 ue   <- read_excel("data/twatasha_final_data/unique_entries 26.sep.2024.xls", col_types = "text")

@@ -33,6 +33,7 @@ def read_xls(path):
         return pd.read_excel(glob.glob(os.path.join(tmp, '*.xlsx'))[0], dtype=str)
 
 F_DEC  = f'{SRC}/data/affiliation_decisions.csv'   # your judgement calls; may be absent
+F_ADD  = f'{SRC}/data/added_affiliations.csv'      # rows version 3 never had; may be absent
 
 DEC_COLS = ['decision_type', 'target', 'new_value', 'latitude', 'longitude',
             'note', 'decided_on']
@@ -181,6 +182,35 @@ v3.columns = [c.strip() for c in v3.columns]
 v3 = v3.rename(columns={'affiliation - original': 'affiliation_original'})
 v3 = v3[['source_citation', 'n', 'affiliation_original', 'affiliation', 'affiliation_simple']]
 v3['row_xlsx'] = np.arange(len(v3)) + 2
+
+# Papers that are in twatasha_todo.csv but were never given an affiliation in
+# either round cannot be fixed by a decision: there is no row to decide about.
+# They are appended here from data/added_affiliations.csv rather than typed into
+# the version 3 spreadsheet, so that file stays the artefact it was delivered as
+# and every hand-entered row remains visible and reversible in one place.
+# row_xlsx from 90001 up marks a row as coming from that file, not a spreadsheet
+# row, which keeps the change log honest.
+ADD_COLS = ['source_citation', 'affiliation', 'affiliation_simple', 'note', 'added_on']
+N_ADDED = 0
+if os.path.exists(F_ADD):
+    add = pd.read_csv(F_ADD, dtype=str).fillna('')
+    missing_cols = [c for c in ADD_COLS if c not in add.columns]
+    if missing_cols:
+        raise SystemExit(f'{F_ADD} is missing columns: {", ".join(missing_cols)}')
+    add = add[add.source_citation.str.strip() != ''].reset_index(drop=True)
+    if len(add):
+        blank_to_na = lambda s: s.where(s.str.strip() != '', np.nan)
+        extra = pd.DataFrame({
+            'source_citation': add.source_citation.values,
+            'n': np.nan,
+            'affiliation_original': np.nan,
+            'affiliation': blank_to_na(add.affiliation).values,
+            'affiliation_simple': blank_to_na(add.affiliation_simple).values,
+            'row_xlsx': np.arange(len(add)) + 90001,
+        })[v3.columns]
+        v3 = pd.concat([v3, extra], ignore_index=True)
+        N_ADDED = len(add)
+
 ORIG = v3.copy()
 
 todo = pd.read_csv(F_TODO, dtype=str)
@@ -620,7 +650,8 @@ for f in sorted(os.listdir(OUT)):
         sums[f] = hashlib.sha256(open(f'{OUT}/{f}', 'rb').read()).hexdigest()
 json.dump(sums, open(f'{OUT}/checksums.json', 'w'), indent=1)
 
-print('rows', len(D1), '| deliverable2', len(D2), '| deliverable3', len(D3))
+print('rows', len(D1), '| deliverable2', len(D2), '| deliverable3', len(D3),
+      ('| %d added from added_affiliations.csv' % N_ADDED) if N_ADDED else '')
 print('changes logged', len(CHANGES))
 print('unmatched v3 rows', len(UNMATCHED), '| todo sources never filled', len(miss_src))
 print('coord status:'); print(D3.coord_status.value_counts().to_string())

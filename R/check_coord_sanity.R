@@ -154,6 +154,42 @@ sovereign_of <- c(
 to_sovereign <- function(iso) ifelse(!is.na(iso) & iso %in% names(sovereign_of),
                                      sovereign_of[iso], iso)
 
+# The other direction, and the reason this exists: folding a territory into its
+# sovereign also hides a point that is in the sovereign but nowhere near the
+# territory the affiliation actually names.  `IPG France` is
+# "Pasteur Institute of Guyana, Cayenne, France" carrying a coordinate in Paris;
+# expected FRA, point FRA, no flag, 7000 km wrong.  So when the text names a
+# territory outright, that territory - not its sovereign - is what the
+# coordinate is checked against.
+#
+# Curated, not exhaustive: names and principal cities specific enough that a
+# match is not an accident.  "Saint-Denis" alone is not here, because most
+# Saint-Denis addresses are the Paris suburb; bare "Guyana" is not here either,
+# because that is a country in its own right.
+territory_regex <- c(
+  GUF = "\\bguyane\\b|\\bfrench\\s+guiana\\b|\\bcayenne\\b|\\bkourou\\b|\\bmatoury\\b",
+  REU = "\\bla\\s+r[eé]union\\b|\\breunion\\b|\\bsainte?.clotilde\\b",
+  GLP = "\\bguadeloupe\\b|\\bpointe.a.pitre\\b|\\bbasse.terre\\b",
+  MTQ = "\\bmartinique\\b|\\bfort.de.france\\b",
+  MYT = "\\bmayotte\\b|\\bmamoudzou\\b",
+  NCL = "\\bnouvelle.cal[eé]donie\\b|\\bnew\\s+caledonia\\b|\\bnoum[eé]a\\b",
+  PYF = "\\bpolyn[eé]sie\\b|\\bfrench\\s+polynesia\\b|\\bpapeete\\b|\\btahiti\\b",
+  PRI = "\\bpuerto\\s+rico\\b",
+  GUM = "\\bguam\\b",
+  HKG = "\\bhong\\s+kong\\b",
+  MAC = "\\bmaca[uo]\\b",
+  GRL = "\\bgreenland\\b|\\bnuuk\\b"
+)
+
+# The territory a piece of text names, when it names exactly one.
+territory_of <- function(x) {
+  if (is.na(x) || !nzchar(trimws(x))) return(NA_character_)
+  s <- tolower(fold(x))
+  hits <- names(territory_regex)[vapply(territory_regex, function(rx)
+    grepl(rx, s, perl = TRUE), logical(1))]
+  if (length(hits) == 1L) hits else NA_character_
+}
+
 # --- data ---------------------------------------------------------------------
 
 # Read as character so decimal places can be counted off the source text.
@@ -161,6 +197,18 @@ coords_raw <- read_csv(coords_file, col_types = cols(.default = col_character())
 lookup     <- read_csv(lookup_file, col_types = cols(
   affiliation_simple = col_character(), affiliation = col_character(),
   n_rows = col_double()))
+
+# A label the owner has already looked at and signed off is not a suspect.
+# `accept_as_is` and `note_only` are the decision types that mean exactly that,
+# so a coordinate carrying one is skipped and counted.
+signed_off <- character(0)
+f_dec <- "data/affiliation_decisions.csv"
+if (file.exists(f_dec)) {
+  d <- read_csv(f_dec, col_types = cols(.default = col_character()), progress = FALSE)
+  if ("decision_type" %in% names(d))
+    signed_off <- unique(d$target[d$decision_type %in% c("accept_as_is", "note_only")])
+  signed_off <- signed_off[!is.na(signed_off)]
+}
 
 co <- coords_raw %>%
   mutate(latitude_num = suppressWarnings(as.numeric(latitude)),
@@ -202,6 +250,21 @@ co <- co %>%
   left_join(aff_summary, by = "affiliation_simple") %>%
   left_join(aff_excerpt, by = "affiliation_simple")
 
+# A territory named anywhere in the label or in any of its affiliation strings.
+terr_by_label <- aff %>%
+  mutate(terr = vapply(affiliation, territory_of, character(1))) %>%
+  filter(!is.na(terr)) %>%
+  count(affiliation_simple, terr, name = "n_terr") %>%
+  arrange(affiliation_simple, desc(n_terr)) %>%
+  group_by(affiliation_simple) %>%
+  summarise(territory_aff = first(terr), .groups = "drop")
+
+co <- co %>%
+  left_join(terr_by_label, by = "affiliation_simple") %>%
+  mutate(territory = ifelse(!is.na(vapply(affiliation_simple, territory_of, character(1))),
+                            vapply(affiliation_simple, territory_of, character(1)),
+                            territory_aff))
+
 co <- co %>%
   mutate(
     expected_country = ifelse(!is.na(country_label), country_label, country_aff),
@@ -214,6 +277,21 @@ co <- co %>%
       !is.na(country_label) ~ sprintf("label only: \"%s\"", country_label_text),
       !is.na(country_aff)   ~ sprintf("affiliation only: %s", aff_tally),
       TRUE ~ NA_character_))
+
+# The text names an overseas territory of the country expected: check against the
+# territory, which is the whole point - Cayenne is France, and 7000 km from Paris.
+co <- co %>%
+  mutate(
+    expected_is_territory = !is.na(territory) &
+      (is.na(expected_country) | to_sovereign(territory) == expected_country |
+       territory == expected_country),
+    expected_country_evidence = ifelse(
+      expected_is_territory & !identical(territory, expected_country),
+      sprintf("%s; text names %s, checked against that",
+              ifelse(is.na(expected_country_evidence), "", expected_country_evidence),
+              territory),
+      expected_country_evidence),
+    expected_country = ifelse(expected_is_territory, territory, expected_country))
 
 # --- actual country -----------------------------------------------------------
 
@@ -256,8 +334,13 @@ if (any(swap_ok)) {
 
 co$point_sov    <- to_sovereign(co$point_country)
 co$expected_sov <- to_sovereign(co$expected_country)
+# Territory-specific expectations are compared exactly; everything else folds
+# into the sovereign, so an institute in Saint-Denis whose affiliation says
+# "France" is not reported as 9,000 km wrong.
 co$country_ok   <- !is.na(co$expected_country) & !is.na(co$point_country) &
-  co$point_sov == co$expected_sov
+  ifelse(co$expected_is_territory,
+         co$point_country == co$expected_country,
+         co$point_sov == co$expected_sov)
 
 dist_to_country <- function(lon, lat, iso) {
   if (is.na(iso)) return(NA_real_)
@@ -294,6 +377,34 @@ co <- co %>%
     f_round = dec_places(latitude) < 2 & dec_places(longitude) < 2,
     f_noexp = is.na(expected_country))
 
+# --- a repair that would put the point in the expected country ----------------
+#
+# Four of the error classes are arithmetic: a sign dropped, a leading digit
+# lost, the pair written the wrong way round.  Each candidate transformation is
+# tested by the same measure as the original - does it land inside the expected
+# country - and only one that does is proposed.  This is evidence, not a fix:
+# coord_review.xlsx offers it as a candidate row and the owner ticks or ignores
+# it (CLAUDE.md rule 4).
+repairs_for <- function(lat, lon, iso) {
+  drop_digit <- function(v) if (abs(v) < 10) sign(v) * (abs(v) + 10) else NA_real_
+  cands <- list(
+    list("latitude sign flipped",      -lat,  lon),
+    list("longitude sign flipped",      lat, -lon),
+    list("both signs flipped",         -lat, -lon),
+    list("latitude and longitude transposed", lon, lat),
+    list("leading 1 lost from latitude",  drop_digit(lat), lon),
+    list("leading 1 lost from longitude", lat, drop_digit(lon)))
+  for (cd in cands) {
+    la <- cd[[2]]; lo <- cd[[3]]
+    if (is.na(la) || is.na(lo)) next
+    if (abs(la) > 90 || abs(lo) > 180) next
+    d <- dist_to_country(lo, la, iso)
+    if (!is.na(d) && d <= THRESHOLD_KM)
+      return(list(type = cd[[1]], lat = la, lon = lo, km = d))
+  }
+  NULL
+}
+
 # One coordinate under two or more labels naming different countries.
 co$coord_key <- paste(co$latitude, co$longitude)
 shared <- co %>%
@@ -321,10 +432,33 @@ flag_of <- function(r) {
 }
 co$flag_type <- vapply(seq_len(nrow(co)), function(i) flag_of(co[i, ]), character(1))
 
+co$repair_type <- NA_character_
+co$repair_latitude <- NA_real_
+co$repair_longitude <- NA_real_
+for (i in which(nzchar(co$flag_type) & !is.na(co$expected_country) &
+                !is.na(co$distance_km_to_expected) &
+                co$distance_km_to_expected > THRESHOLD_KM)) {
+  r <- repairs_for(co$latitude_num[i], co$longitude_num[i], co$expected_country[i])
+  if (!is.null(r)) {
+    co$repair_type[i]      <- r$type
+    co$repair_latitude[i]  <- r$lat
+    co$repair_longitude[i] <- r$lon
+  }
+}
+
 trunc_at <- function(x, n = 120) {
   x <- gsub("[[:space:]]+", " ", x)
   ifelse(is.na(x), NA_character_,
          ifelse(nchar(x) > n, paste0(substr(x, 1, n - 1), "…"), x))
+}
+
+if (length(signed_off)) {
+  hit <- co$affiliation_simple %in% signed_off & nzchar(co$flag_type)
+  if (any(hit)) {
+    message(sprintf("signed off with accept_as_is/note_only, not flagged: %d", sum(hit)))
+    message(paste0("    ", co$affiliation_simple[hit], collapse = "\n"))
+    co$flag_type[hit] <- ""
+  }
 }
 
 out <- co %>%
@@ -342,6 +476,9 @@ out <- co %>%
     point_country_name,
     distance_km_to_expected = round(distance_km_to_expected, 2),
     flag_type,
+    repair_type,
+    repair_latitude,
+    repair_longitude,
     shared_coordinate_countries = shared_countries,
     affiliation_excerpt = trunc_at(affiliation_excerpt),
     google_maps = sprintf("https://www.google.com/maps/search/?api=1&query=%s,%s",

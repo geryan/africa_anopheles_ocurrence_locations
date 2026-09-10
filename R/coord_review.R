@@ -42,6 +42,8 @@ F_SHEET     <- file.path(root, "data", "coord_review.xlsx")
 F_DECISIONS <- file.path(root, "data", "affiliation_decisions.csv")
 F_PROPOSED  <- file.path(root, "output", "proposed_coords_missing88_20260818.csv")
 F_CONFLICTS <- file.path(root, "output", "review_coord_conflicts.csv")
+F_SANITY    <- file.path(root, "output", "review_coord_sanity.csv")
+F_COORDS    <- file.path(root, "output", "affiliation_simple_coords_20260817.csv")
 F_LOOKUP    <- file.path(root, "output", "affiliation_lookup_20260817.csv")
 
 DEC_COLS <- c("decision_type", "target", "new_value", "latitude", "longitude",
@@ -91,8 +93,12 @@ aff_by_label <- function() {
 }
 
 # ---- 1. the candidate rows ---------------------------------------------------
-# Two sources: the 88 researched proposals, and the 29 labels that already carry
-# more than one coordinate. Both are things needing a yes/no.
+# Three sources, all of them things needing a yes/no: the 88 researched
+# proposals, the 29 labels that already carry more than one coordinate, and the
+# suspects from R/check_coord_sanity.R -- coordinates that are already settled
+# but sit outside the country their affiliation names. The third source is what
+# lets a coordinate be re-opened after it has been accepted, which is otherwise
+# impossible: an `ok` label never reaches this sheet.
 
 build_candidates <- function() {
   prop <- read_csv(F_PROPOSED, show_col_types = FALSE, progress = FALSE)
@@ -151,7 +157,78 @@ build_candidates <- function() {
     }) %>%
     ungroup()
 
-  out <- bind_rows(missing_rows, conflict_rows) %>%
+  # Sanity suspects: the coordinate as it stands, so ticking it means "checked,
+  # this is right", plus the arithmetic repair when the sweep found one that
+  # lands inside the expected country.
+  # A header-only sanity file types every column as character, which used to
+  # blow bind_rows up with "Can't combine <double> and <character>". Read it,
+  # then coerce, then bail out if there is nothing in it.
+  sn <- if (file.exists(F_SANITY)) {
+    x <- read_csv(F_SANITY, show_col_types = FALSE, progress = FALSE)
+    for (cl in c("latitude", "longitude", "repair_latitude", "repair_longitude",
+                 "distance_km_to_expected", "n_rows"))
+      if (cl %in% names(x)) x[[cl]] <- suppressWarnings(as.numeric(x[[cl]]))
+    x
+  } else NULL
+
+  sanity_rows <- if (!is.null(sn) && nrow(sn)) {
+    diag <- sprintf("%s; point is in %s, expected %s%s",
+                    blank(sn$flag_type),
+                    ifelse(is.na(sn$point_country_name), "open sea", sn$point_country_name),
+                    blank(sn$expected_country),
+                    ifelse(is.na(sn$distance_km_to_expected), "",
+                           sprintf(", %s km outside it",
+                                   format(round(sn$distance_km_to_expected, 1), trim = TRUE))))
+    current <- tibble(
+      affiliation_simple = sn$affiliation_simple,
+      case = "sanity", latitude = sn$latitude, longitude = sn$longitude,
+      precision = "", confidence = "",
+      resolved_name = "the coordinate as it stands - tick this if it is right",
+      n_rows = as.integer(sn$n_rows),
+      source_name = "review_coord_sanity.csv", source_url = "",
+      google_maps = blank(sn$google_maps),
+      nearest_existing_label = "", nearest_existing_km = NA_real_,
+      same_coord_group = "", geocoder_notes = diag,
+      existing_project_note = blank(sn$affiliation_excerpt))
+    fixed <- sn %>% filter(!is.na(repair_type))
+    repaired <- if (nrow(fixed)) tibble(
+      affiliation_simple = fixed$affiliation_simple,
+      case = "sanity", latitude = fixed$repair_latitude,
+      longitude = fixed$repair_longitude,
+      precision = "", confidence = "",
+      resolved_name = sprintf("repair: %s", fixed$repair_type),
+      n_rows = as.integer(fixed$n_rows),
+      source_name = "review_coord_sanity.csv", source_url = "",
+      google_maps = sprintf("https://www.google.com/maps/search/?api=1&query=%.7f,%.7f",
+                            fixed$repair_latitude, fixed$repair_longitude),
+      nearest_existing_label = "", nearest_existing_km = NA_real_,
+      same_coord_group = "",
+      geocoder_notes = sprintf("this lands inside %s", fixed$expected_country),
+      existing_project_note = blank(fixed$affiliation_excerpt)) else NULL
+    bind_rows(current, repaired)
+  } else NULL
+
+  # A label that deliverable 3 says is `missing` but that no source offers a
+  # candidate for would never reach this sheet at all -- the trap that hid
+  # `U Nijmegen` in September. Give it an empty row to type into instead.
+  offered <- unique(c(missing_rows$affiliation_simple, conflict_rows$affiliation_simple,
+                      sanity_rows$affiliation_simple))
+  d3 <- read_csv(F_COORDS, show_col_types = FALSE, progress = FALSE)
+  orphan <- d3 %>%
+    filter(coord_status == "missing", !affiliation_simple %in% offered)
+  orphan_rows <- if (nrow(orphan)) tibble(
+    affiliation_simple = orphan$affiliation_simple,
+    case = "needs a coordinate", latitude = NA_real_, longitude = NA_real_,
+    precision = "", confidence = "",
+    resolved_name = "no candidate from any source - type the coordinate into H and I",
+    n_rows = as.integer(orphan$n_rows),
+    source_name = "", source_url = "", google_maps = "",
+    nearest_existing_label = "", nearest_existing_km = NA_real_,
+    same_coord_group = "",
+    geocoder_notes = "this label has no coordinate and nothing proposed one",
+    existing_project_note = "") else NULL
+
+  out <- bind_rows(missing_rows, conflict_rows, sanity_rows, orphan_rows) %>%
     mutate(k_lab = join_key(affiliation_simple)) %>%
     left_join(aff_by_label(), by = c(k_lab = "k"))
 
