@@ -6,12 +6,12 @@
 # NOT EXECUTED BY ITS AUTHOR. R was unavailable in the environment where this
 # was written, so this script has never been run. It is a line-for-line
 # transcription of tidy_affiliations.py, which was run and whose outputs are
-# shipped alongside it. Two guards are therefore built in:
+# kept alongside it as a baseline. Two guards are therefore built in:
 #
 #   * a self-test (section 0) that stops immediately if iconv on this machine
 #     does not behave as the encoding repair assumes;
 #   * a parity check (section 12) that compares what this script produces
-#     against the shipped CSVs and stops on any differing cell.
+#     against the parity-baseline CSVs and stops on any differing cell.
 #
 # If both pass, this script and the Python reference agree exactly.
 #
@@ -39,7 +39,9 @@ library(tibble)
 
 STAMP     <- "20260817"   # set to format(Sys.Date(), "%Y%m%d") for a fresh stamp
 OUT       <- "output"
-PARITY_TO <- "output/shipped"   # shipped reference CSVs; the script writes to OUT,
+FINAL     <- file.path(OUT, "final")   # the three deliverables; see output/final/README.txt
+dir.create(FINAL, showWarnings = FALSE, recursive = TRUE)
+PARITY_TO <- "output/parity_baseline"   # shipped reference CSVs; the script writes to OUT,
                                 # so the two must be different directories
 
 # == 0. encoding repair, and the self-test that gates it ====================
@@ -167,7 +169,7 @@ if (length(failed)) {
   for (p in failed) message("  got: ", p[1], "   expected: ", p[2])
   stop("encoding/us-uk self-test failed. iconv on this machine does not support\n",
        "  the 'macintosh' encoding as assumed, or stringi is missing. Do not trust\n",
-       "  the output; use the shipped CSVs instead.", call. = FALSE)
+       "  the output; use the Python pipeline instead.", call. = FALSE)
 }
 message("self-test passed (", length(selftest), " cases)")
 
@@ -347,7 +349,7 @@ local({
   if (!identical(got, "The Museum, London"))
     stop("token_replacement self-test failed: regex lookaround or escaping is not\n",
          "  behaving as assumed on this machine. Decisions of type token_replacement\n",
-         "  would silently misfire. Use the shipped CSVs instead.", call. = FALSE)
+         "  would silently misfire. Use the Python pipeline instead.", call. = FALSE)
 })
 TOKEN_HITS <- setNames(integer(length(TOKEN_OVERRIDE)), names(TOKEN_OVERRIDE))
 for (col in c("affiliation_original", "affiliation", "affiliation_simple"))
@@ -488,13 +490,13 @@ if (length(RENAME)) {
 
 # == 6-8. deliverables =======================================================
 D1 <- select(v3, source_citation, n, affiliation_original, affiliation, affiliation_simple)
-write_csv(D1, file.path(OUT, sprintf("affiliations_complete_%s.csv", STAMP)), na = "")
+write_csv(D1, file.path(FINAL, sprintf("affiliations_complete_%s.csv", STAMP)), na = "")
 
 D2 <- v3 %>% filter(!is.na(affiliation), !is.na(affiliation_simple)) %>%
   count(affiliation_simple, affiliation, name = "n_rows") %>%
   arrange(tolower(affiliation_simple), tolower(affiliation)) %>%
   select(affiliation_simple, affiliation, n_rows)
-write_csv(D2, file.path(OUT, sprintf("affiliation_lookup_%s.csv", STAMP)), na = "")
+write_csv(D2, file.path(FINAL, sprintf("affiliation_lookup_%s.csv", STAMP)), na = "")
 
 as_num <- function(x) {
   x <- str_trim(str_replace(str_trim(x), ",$", ""))
@@ -608,7 +610,7 @@ for (lbl in names(COORD_DECISION)) {
 }
 
 D3$n_rows <- as.integer(table(v3$affiliation_simple)[D3$affiliation_simple])
-write_csv(D3, file.path(OUT, sprintf("affiliation_simple_coords_%s.csv", STAMP)), na = "")
+write_csv(D3, file.path(FINAL, sprintf("affiliation_simple_coords_%s.csv", STAMP)), na = "")
 
 # -- accept_as_is / note_only, and the decisions report ----------------------
 REVIEWED <- character(0)
@@ -723,7 +725,7 @@ if (nrow(DR)) {
 }
 message("assertions passed")
 
-# == 12. parity check against the shipped CSVs ==============================
+# == 12. parity check against the baseline CSVs ==============================
 # Remove this section once you trust the script.
 parity <- function(fname, made) {
   path <- file.path(PARITY_TO, fname)
@@ -752,11 +754,11 @@ parity <- function(fname, made) {
   if (bad > 0) stop("parity FAILED on ", fname, ": ", bad, " differing cells", call. = FALSE)
   message("parity ok: ", fname)
 }
-# The shipped copies were produced with an empty decisions file. Once you start
+# The baseline copies were produced with an empty decisions file. Once you start
 # recording decisions the outputs legitimately diverge, so the check stands down.
 if (length(DECISIONS)) {
   message("parity check skipped: ", length(DECISIONS), " decision(s) in force, so the ",
-          "shipped\n  reference in ", PARITY_TO, " is deliberately out of date. ",
+          "baseline\n  reference in ", PARITY_TO, " is deliberately out of date. ",
           "To re-check parity,\n  move data/affiliation_decisions.csv aside and re-run.")
 } else {
   parity(sprintf("affiliations_complete_%s.csv", STAMP), D1)

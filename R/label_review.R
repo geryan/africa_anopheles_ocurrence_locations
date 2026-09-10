@@ -95,7 +95,7 @@ blank <- function(x) ifelse(is.na(x), "", as.character(x))
 today <- format(Sys.Date(), "%Y-%m-%d")
 
 newest <- function(pattern) {
-  f <- list.files(file.path(root, "output"), pattern = pattern, full.names = TRUE)
+  f <- list.files(file.path(root, "output", "final"), pattern = pattern, full.names = TRUE)
   if (!length(f)) stop("no file matching ", pattern, " in output/", call. = FALSE)
   sort(f, decreasing = TRUE)[1]
 }

@@ -25,10 +25,12 @@ What is left is not work: `review_simple_lumping.csv` (124) and `review_label_lu
 answers are recorded in `label_review.xlsx`; `review_us_uk_tokens.csv` (21) and
 `review_labels_collapsed.csv` (8) were reviewed on 2026-09-10 and left as they are.
 
-One provenance decision is still open: the deliverable filenames carry `20260817`, the date
-the automated repair ran, not the date of the judgement calls that followed. Changing that
-is one line in `tidy_affiliations.py` and changes the filename every downstream consumer
-sees.
+**The deliverables live in `output/final/`** (2026-09-10), with a README that says what
+each file and column is, what was done, and what the known limits are. Everything else in
+`output/` is working files. `output/shipped/` was renamed **`output/parity_baseline/`** and
+carries its own README saying it is a pre-decisions test fixture, not a product — the old
+name had already caused one near-miss. The filenames keep the `20260817` stamp on purpose,
+so anything downstream that refers to them still resolves.
 
 ### The label sweep — new 2026-09-07, nothing acted on
 
@@ -223,7 +225,7 @@ Rules that matter:
   decision did not apply.
 - **`coordinate` targets the label as it stands after renames.** If a label is being
   renamed and given a coordinate, target the new name.
-- The file is optional. Absent or header-only, the pipeline reproduces the shipped
+- The file is optional. Absent or header-only, the pipeline reproduces the baseline
   outputs byte-for-byte.
 - `data/affiliation_decisions_EXAMPLE.csv` shows every type in use. It is illustrative —
   do not copy it into place wholesale.
@@ -328,7 +330,7 @@ created.** `A → B` then `B → C` resolves the data correctly, but the `B → 
 The Python implementation is the tested reference. `R/tidy_affiliations.R` is a
 transcription that has **never been executed** — R was unavailable where it was written.
 It self-tests its encoding and regex assumptions before touching data, and checks parity
-against `output/shipped/`. The parity check stands down once a decisions file exists,
+against `output/parity_baseline/`. The parity check stands down once a decisions file exists,
 since the outputs then legitimately differ.
 
 Reading the legacy `.xls` needs `xlrd` in Python (`pip install xlrd`), or the script falls
@@ -390,9 +392,11 @@ R/
   sources_to_check.R            produced output/twatasha_todo.csv
   unique_affils.R, reseach_locations.R   round-1 scripts, historical
 output/
-  affiliations_complete_*.csv   deliverable 1
-  affiliation_lookup_*.csv      deliverable 2
-  affiliation_simple_coords_*.csv  deliverable 3
+  final/                        THE THREE DELIVERABLES, and nothing else. Has its
+                                own README.txt. Everything below is working files
+    affiliations_complete_*.csv      deliverable 1
+    affiliation_lookup_*.csv         deliverable 2
+    affiliation_simple_coords_*.csv  deliverable 3
   decisions_report.csv          did each decision apply?
   diff_report_*.csv             every changed cell; 1174 rows, read only with grep
   review_encoding_repairs.csv   411 rows; read only with grep
@@ -402,7 +406,12 @@ output/
   review_label_duplicates.csv   153 label pairs that may be one place; nothing acted on
   review_label_lumping.csv      86 labels that may be several places; nothing acted on
   review_*.csv                  what still needs a human
-  shipped/                      reference copies for the R parity check
+  parity_baseline/              a frozen 2026-08-17 build made with NO decisions,
+                                for the R parity check only. NOT a deliverable; it
+                                still shows 88 missing / 29 conflict. Called
+                                shipped/ until 2026-09-10, a name that read as
+                                "the files we shipped" and caused exactly the
+                                confusion you would expect. Has its own README.txt
 AFFILIATION_CLEANING_README.md  what the pipeline did
 aff_audit_plan.md               file lineage and full damage inventory
 NEXT_STEPS.md                   the work queue; linear, steps 1-4 then reference

@@ -15,9 +15,15 @@ Every step is done. The build is clean — **233 decisions, all applying**, and 
 
 | | |
 |---|---|
-| deliverable 1 `affiliations_complete_*.csv` | 1278 rows — 1273 from the spreadsheet, 5 added |
-| deliverable 2 `affiliation_lookup_*.csv` | 986 pairs |
-| deliverable 3 `affiliation_simple_coords_*.csv` | 298 labels — 169 `ok`, 116 `decided`, 13 `absent` |
+| `output/final/affiliations_complete_*.csv` | 1278 rows — 1273 from the spreadsheet, 5 added |
+| `output/final/affiliation_lookup_*.csv` | 986 pairs |
+| `output/final/affiliation_simple_coords_*.csv` | 298 labels — 169 `ok`, 116 `decided`, 13 `absent` |
+
+**The three deliverables are in `output/final/`, with a README.txt that documents every
+column, what was done and the known limits.** Everything else in `output/` is working
+files. `output/parity_baseline/` (called `shipped/` until 2026-09-10) is a frozen
+pre-decisions build kept only for the R parity check — it still shows 88 missing and 29
+conflict, and its own README says so.
 
 Nothing is `missing` and nothing is in `conflict`. The 13 `absent` are the round-1 source
 file's own `ABSENT`. All 542 `twatasha_todo.csv` sources are represented;
@@ -471,7 +477,7 @@ regression.
 | `note_only` | you, in the CSV | records a note; marks reviewed |
 
 The two scripts each rewrite their own decision type and pass every other row through
-untouched. The file is optional: absent or header-only, the pipeline reproduces the shipped
+untouched. The file is optional: absent or header-only, the pipeline reproduces the baseline
 outputs byte-for-byte. `data/affiliation_decisions_EXAMPLE.csv` shows every type in use and
 is illustrative — do not copy it into place.
 
@@ -574,7 +580,7 @@ never been run — use the Python.
 ### Known soft spots
 
 - `R/tidy_affiliations.R` has never been run. Treat its first execution as a test; if its
-  self-test or parity check fails, the shipped CSVs in `output/shipped/` are the trusted
+  self-test or parity check fails, the baseline CSVs in `output/parity_baseline/` are the trusted
   artefacts. R 4.6.1 is installed with `readxl`, `readr`, `dplyr`, `stringi`, `writexl`,
   `tidyr` and `countrycode`; `openxlsx` is absent.
 - `pandas`, `xlrd` and `openpyxl` were installed 2026-09-03 and both Python steps run on

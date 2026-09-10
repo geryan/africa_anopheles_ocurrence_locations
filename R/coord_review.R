@@ -43,8 +43,8 @@ F_DECISIONS <- file.path(root, "data", "affiliation_decisions.csv")
 F_PROPOSED  <- file.path(root, "output", "proposed_coords_missing88_20260818.csv")
 F_CONFLICTS <- file.path(root, "output", "review_coord_conflicts.csv")
 F_SANITY    <- file.path(root, "output", "review_coord_sanity.csv")
-F_COORDS    <- file.path(root, "output", "affiliation_simple_coords_20260817.csv")
-F_LOOKUP    <- file.path(root, "output", "affiliation_lookup_20260817.csv")
+F_COORDS    <- file.path(root, "output", "final", "affiliation_simple_coords_20260817.csv")
+F_LOOKUP    <- file.path(root, "output", "final", "affiliation_lookup_20260817.csv")
 
 DEC_COLS <- c("decision_type", "target", "new_value", "latitude", "longitude",
               "note", "decided_on")

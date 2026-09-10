@@ -10,6 +10,11 @@ SRC   = os.environ.get('AFFIL_PROJECT_ROOT', '.')
 OUT   = os.path.join(SRC, 'output')
 os.makedirs(OUT, exist_ok=True)
 
+# The three deliverables go in their own directory so they cannot be mistaken for
+# the working files, the review lists, or the pre-decisions parity baseline.
+FINAL = os.path.join(OUT, 'final')
+os.makedirs(FINAL, exist_ok=True)
+
 F_V3   = f'{SRC}/data/twatasha_final_data/Affiliation spreadsheet_version 3. 26 Sep. 2024.xlsx'
 F_TODO = f'{SRC}/output/twatasha_todo.csv'
 F_UE   = f'{SRC}/data/twatasha_final_data/unique_entries 26.sep.2024.xls'
@@ -433,7 +438,7 @@ if RENAME:
 
 # ================================================ deliverable 1 ===============
 D1 = v3[['source_citation', 'n', 'affiliation_original', 'affiliation', 'affiliation_simple']].copy()
-D1.to_csv(f'{OUT}/affiliations_complete_20260817.csv', index=False, encoding='utf-8')
+D1.to_csv(f'{FINAL}/affiliations_complete_20260817.csv', index=False, encoding='utf-8')
 
 # ================================================ deliverable 2 ===============
 D2 = (v3.dropna(subset=['affiliation', 'affiliation_simple'])[['affiliation_simple', 'affiliation']]
@@ -442,7 +447,7 @@ D2 = (v3.dropna(subset=['affiliation', 'affiliation_simple'])[['affiliation_simp
 D2['n_rows'] = D2.apply(
     lambda r: int(((v3.affiliation == r.affiliation) &
                    (v3.affiliation_simple == r.affiliation_simple)).sum()), axis=1)
-D2.to_csv(f'{OUT}/affiliation_lookup_20260817.csv', index=False, encoding='utf-8')
+D2.to_csv(f'{FINAL}/affiliation_lookup_20260817.csv', index=False, encoding='utf-8')
 
 # ================================================ deliverable 3 ===============
 def fnum(x):
@@ -549,7 +554,7 @@ for lbl, (la, lo, nt, d) in COORD_DECISION.items():
 
 D3['n_rows'] = D3.affiliation_simple.map(v3.affiliation_simple.value_counts()).fillna(0).astype(int)
 D3 = D3.drop(columns='lk')
-D3.to_csv(f'{OUT}/affiliation_simple_coords_20260817.csv', index=False, encoding='utf-8')
+D3.to_csv(f'{FINAL}/affiliation_simple_coords_20260817.csv', index=False, encoding='utf-8')
 
 # ------------------------------------- accept_as_is / note_only -------------
 REVIEWED = set()

@@ -4,10 +4,11 @@ import pandas as pd, numpy as np, re, random, unicodedata
 
 import os
 SRC  = os.environ.get('AFFIL_PROJECT_ROOT', '.')
-OUT  = os.path.join(SRC, 'output')
-D1 = pd.read_csv(f'{OUT}/affiliations_complete_20260817.csv', dtype=str)
-D2 = pd.read_csv(f'{OUT}/affiliation_lookup_20260817.csv', dtype=str)
-D3 = pd.read_csv(f'{OUT}/affiliation_simple_coords_20260817.csv', dtype=str)
+OUT   = os.path.join(SRC, 'output')          # reports and review lists
+FINAL = os.path.join(OUT, 'final')            # the three deliverables
+D1 = pd.read_csv(f'{FINAL}/affiliations_complete_20260817.csv', dtype=str)
+D2 = pd.read_csv(f'{FINAL}/affiliation_lookup_20260817.csv', dtype=str)
+D3 = pd.read_csv(f'{FINAL}/affiliation_simple_coords_20260817.csv', dtype=str)
 todo = pd.read_csv(f'{SRC}/output/twatasha_todo.csv', dtype=str)
 orig = pd.read_excel(f'{SRC}/data/twatasha_final_data/Affiliation spreadsheet_version 3. 26 Sep. 2024.xlsx', dtype=str)
 orig.columns = [c.strip() for c in orig.columns]

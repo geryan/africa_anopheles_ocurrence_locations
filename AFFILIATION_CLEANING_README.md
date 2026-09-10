@@ -141,11 +141,11 @@ reachable, so it could not be tested. Do not assume it works. It carries two gua
 
 * a self-test that runs 11 known repairs before touching any data and stops if `iconv` on
   your machine does not support the `macintosh` encoding as the repair assumes;
-* a parity check that compares its three deliverables, cell by cell, against the shipped
-  copies in `output/shipped/` and stops on any difference.
+* a parity check that compares its three deliverables, cell by cell, against the frozen
+  pre-decisions copies in `output/parity_baseline/` and stops on any difference.
 
 If both pass, the two implementations agree and you can delete the parity section. If the
-parity check fails, the shipped CSVs are the ones to trust — they are what the tested
+parity check fails, the baseline CSVs are the ones to trust — they are what the tested
 implementation produced.
 
 Encoding repair in R, for reference:

@@ -88,7 +88,7 @@ MIN_HEADS_ALONE     <- 3L     # institutions needed to report a label on that al
 
 # Newest dated deliverable, so this still runs after a rebuild re-stamps them.
 newest <- function(pattern) {
-  f <- list.files("output", pattern = pattern, full.names = TRUE)
+  f <- list.files("output/final", pattern = pattern, full.names = TRUE)
   if (!length(f)) stop("no file matching ", pattern, " in output/")
   sort(f, decreasing = TRUE)[1]
 }
