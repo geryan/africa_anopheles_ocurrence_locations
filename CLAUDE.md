@@ -143,6 +143,13 @@ went into Excel on a Mac and came back as `YaoundÈ` and `Deuxi√®me`. If a fi
 inspected in a spreadsheet, use Excel's Data → From Text/CSV import with UTF-8 chosen
 explicitly, and do not save back. Read them in R instead.
 
+**1b. Save and CLOSE the sheet before running its script.** Every one of the four
+`*_review.R` scripts rewrites its own `.xlsx` on each run. If the sheet is still open in
+Excel, the script reads the version on disk — without whatever is unsaved — and then
+overwrites the file with its own. The edit is gone, silently, and the only sign is that the
+answer never appears. This happened on 2026-09-10 with a coordinate for `SNLAP Senegal`.
+Order is always: type → save → close → run.
+
 **2. `source_citation` must stay byte-identical to `output/twatasha_todo.csv`.** It is the
 join key back to `data/vector_extraction_data.csv`. It is deliberately excluded from
 whitespace normalisation. Do not trim it, do not collapse its double spaces, do not strip
@@ -259,6 +266,27 @@ survived rather than by raw position, since a removed row shifts everything afte
 todo-coverage check was rewritten to assert the invariant (every todo source represented)
 rather than arithmetic on 541, because a supplied citation may be one that already had a
 row or a wholly new one.
+
+## When a change moves a count, teach verify — do not loosen it
+
+`verify_affiliations.py` asserts against constants taken from the source spreadsheet: 1273
+rows, 541 of 542 sources covered, non-null counts per column. Three changes in September
+2026 moved those numbers legitimately — appending rows from `added_affiliations.csv`,
+dropping replaced `ABSENT` placeholders, and re-keying coverage. Each time the assertion
+was rewritten to compute the new expectation from the same inputs, never deleted or
+relaxed:
+
+- the row count is `1273 + added - replaced`, both recomputed in verify from the additions
+  file and the spreadsheet rather than taken on trust;
+- coverage asserts the invariant — every `twatasha_todo.csv` source is represented — because
+  arithmetic on 541 cannot tell a wholly new citation from one that already had an `ABSENT`
+  row;
+- the 20-random-row drift check compares against the rows that **survived**, in order,
+  because a dropped row shifts every position after it and made 11 untouched rows look
+  drifted.
+
+If a change makes verify fail, the question is which assertion is now wrong about the
+world, not how to make the red go away.
 
 ## Adding a paper version 3 never covered
 

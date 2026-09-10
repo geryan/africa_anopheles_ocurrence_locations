@@ -1,72 +1,88 @@
-Continuing the affiliation cleanup, fourth session. Read CLAUDE.md — the "Where this is
-up to" section is the current state and is accurate as of the end of the last session.
-Read the "Start here" section of NEXT_STEPS.md only for the sheet mechanics (§1); its
-counts are two sessions out of date, so trust CLAUDE.md over them. Do not read anything
-else to get oriented, and do not re-audit the project.
+Continuing the affiliation cleanup, fifth session. Read CLAUDE.md — the "Where this is up
+to" section is the current state and is accurate as of the end of the last session. Read
+NEXT_STEPS.md for the work: it runs top to bottom, steps 1 to 5, and everything after the
+Reference heading is background. Do not read anything else to get oriented, and do not
+re-audit the project.
 
-FIRST ACTION, before anything else: the build is not clean. Two dead `coordinate`
-decisions report no_match and verify ends `41 checks, 2 failed` —
+STATE. The build is clean: 233 decisions, all applying, and `python3
+R/verify_affiliations.py` ends `41 checks, 0 failed`. The three deliverables are in
+output/final/ (1278 rows, 986 lookup pairs, 298 labels — 169 ok, 116 decided, 13 absent,
+nothing missing or in conflict), with a README.txt there documenting every column. Steps 1
+to 4 are done: labels merged, every coordinate settled, the coordinate sanity sweep flags
+0 of 284, spot-checks reviewed, and the one paper version 3 never covered has its five
+affiliations in.
 
-  [no_match] coordinate | 'CIRAD France'   -> no affiliation_simple by that name
-  [no_match] coordinate | 'MIVEGEC France' -> no affiliation_simple by that name
+FIRST ACTION: run `python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py` and
+tell me the counts. Expect 41 checks, 0 failed. Then wait.
 
-Both labels were merged into `MIVEGEC / CIRAD / LIN Montpellier` last session, but their
-sheet rows were still ticked yes, so coord_review.R reclassified them to case = manual —
-exempt from the merged-away guard — and re-wrote the decisions after I deleted them from
-the CSV. Read data/coord_review.xlsx with openpyxl, confirm which rows now hold
-`CIRAD France` and `MIVEGEC France` with accepted = yes (they were A101 and A107, but row
-numbers shift when the sheet is rebuilt), and tell me the cell references to blank. I
-blank them, not you. Deleting the decisions from the CSV alone does not work — the sheet
-puts them straight back.
+WHAT IS OPEN — step 5, and nothing else. 59 rows of deliverable 1 carry `affiliation =
+ABSENT`, over 58 papers: whoever entered them could not find an affiliation. They are in
+data/absent_review.xlsx, all open, one row per ABSENT row. I type the affiliation into
+column A and its label into column B. 55 of the papers are ABSENT and nothing else; 3 have
+real affiliations alongside a placeholder, and their existing labels show in
+`other_labels_on_this_paper`; 2 rows arrive with column B already filled because the row
+had a label but no affiliation text — leave those labels alone unless they are wrong.
 
-Where I am: steps 0 and 2 are done. Step 1 is part done — 99 decisions, 97 applying,
-366 labels at 256 ok / 52 decided / 40 missing / 18 absent / 0 conflict. The sheet is
-128 rows over 93 labels, 54 settled, 39 open. Once the two cells are blanked, expect
-97 decisions all applying and `41 checks, 0 failed`; the label counts do not change.
+Loop, every time: `Rscript R/absent_review.R` → I edit the sheet → `Rscript
+R/absent_review.R` → `python3 R/tidy_affiliations.py && python3
+R/verify_affiliations.py`. Report the counts and anything that did not apply. A new label
+in column B creates a new label, which then wants a coordinate and appears in
+coord_review.xlsx as a `needs a coordinate` row — tell me when that happens.
 
-All the same_coord_group duplicates are resolved; group 3 (Equatorial Guinea) was
-deliberately kept separate, do not re-merge it.
+HOW WE WORK. There are four sheet-and-script loops and I make every judgement call in a
+sheet. You never put an answer in a sheet for me — not yes/no, not a coordinate, not a
+label. You run the scripts, rebuild, verify, and report.
 
-What is left after the fix is the 39 open `missing` rows — ordinary one-at-a-time
-coordinate calls.
+  R/absent_review.R   data/absent_review.xlsx   ABSENT affiliations   <- the live one
+  R/coord_review.R    data/coord_review.xlsx    coordinates
+  R/label_review.R    data/label_review.xlsx    label merges
+  R/check_coord_sanity.R and R/check_label_candidates.R are read-only sweeps that feed
+  the first two.
 
-Also open, not started: output/review_coord_sanity.csv holds 24 coordinates that fall
-outside the country their affiliation names, found by R/check_coord_sanity.R last
-session. Nothing in it has been acted on. Do not start on it unless I ask. It is sorted
-worst-first and every row has a Google Maps link. Note its blind spot — it cannot see a
-coordinate that is in the right country but the wrong place, which is how the LIN labels
-sat 98 km from Montpellier undetected.
+Run label_review.R before coord_review.R when both are in play: a merge patches the
+coordinate sheet and coord_review.R turns that patch back into decisions.
 
-Never read these, they are huge and irrelevant: data/vector_extraction_data.csv,
+Never hand me a manual procedure for work that recurs. If a task needs the same judgement
+made repeatedly and no mechanism exists, say so plainly and build the loop — that is what
+the four scripts are. Check the work actually surfaces where I am working; twice I have
+been told to act on something that had no way of reaching me.
+
+If verify fails after a change that legitimately moves a count, teach the assertion the new
+expectation, computed from the same inputs. Do not loosen or delete it. See the section in
+CLAUDE.md.
+
+WHEN I ASK ABOUT A LABEL. Answer from the review CSVs in output/ plus a web search if the
+institution is unclear. Do not volunteer opinions on labels I have not asked about —
+EXCEPT that when I name a label to merge or rename, list every other label naming the same
+institution, place or acronym, with row counts, coordinates and coord_status, as a short
+block with no recommendation. Typos, institution identity and coordinate choices are my
+calls: surface them, do not settle them. If I write a label name that looks like a slip,
+ask before writing it into a deliverable.
+
+TRAPS THAT HAVE COST TIME.
+
+- The scripts rewrite their own xlsx on every run. If the sheet is still open in Excel the
+  script reads the on-disk version without my unsaved edit and then overwrites the file —
+  the edit vanishes silently. Remind me: type, save, close, run. This lost a coordinate on
+  2026-09-10.
+- The build goes stale quietly. `*_review.R` writes decisions; nothing is in the
+  deliverables until `tidy_affiliations.py` runs. Twice a "failure" was just a missing
+  rebuild.
+- After a batch of merges the coordinate sheet can need two passes: coord_review.R reads
+  the current deliverables, so run it, rebuild, then run it again if stale rows remain.
+- output/final/ holds the deliverables. output/parity_baseline/ is a frozen pre-decisions
+  build kept only as a test fixture — it still shows 88 missing and 29 conflict and is NOT
+  the product. It was called output/shipped/ until 2026-09-10, and that name caused exactly
+  the confusion you would expect. Both directories have a README.txt.
+
+NEVER READ, they are huge and irrelevant: data/vector_extraction_data.csv,
 output/diff_report_*.csv, output/review_encoding_repairs.csv,
 output/review_simple_lumping.csv, and any .tif/.geotiff/.zip. Use grep or head on the
 review CSVs; never cat one whole.
 
-Start by running `Rscript R/coord_review.R`, then
-`python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py`, and tell me the
-counts and the two failures. Then wait — I fill in column A of data/coord_review.xlsx
-myself. Never put yes/no in the sheet for me. Every time I tell you I have edited the
-sheet and re-run coord_review.R, rebuild and verify and report the counts and anything
-that did not apply.
-
-How to answer when I ask about a label:
-
-- Look that label up with grep in output/proposed_coords_missing88_20260818.csv or
-  output/review_coord_conflicts.csv, and answer from that plus a web search if the
-  institution is unclear.
-- Do not volunteer opinions on labels I have not asked about — EXCEPT that when I name
-  a label to merge or rename, you must also list every other label naming the same
-  institution, place or acronym, with row counts, coordinates and coord_status. Those
-  are facts I cannot see, because the sheet only shows `missing` and `conflict` rows.
-  Give them as a short block after doing what I asked, with no recommendation.
-- Typos, institution identity and coordinate choices are my calls. Surface them, do not
-  settle them. If I write a label name that looks like a slip, ask before writing it
-  into a deliverable.
-
-Apply my decisions by appending to data/affiliation_decisions.csv, then rebuild and
-verify. Renames must name their final destination rather than chaining through a label
-that earlier renames created, or the chained row reports no_match and verify fails.
-A label_rename strands any coordinate decision targeting the old name — remove the dead
-decision, AND find the ticked sheet row and tell me which cell to blank. Do not assume
-the script's merged-away guard will clean it up; it will not, that is what broke this
-session's last rebuild.
+STILL OPEN, LOWER PRIORITY, do not start unless I ask:
+- output/review_label_lumping.csv (84) and output/review_simple_lumping.csv (124): how
+  coarse a label should be. `SAP Italy` covers 45 affiliation strings, `OCEAC Cameroon` 28.
+  Deliberately not pursued.
+- The deliverable filenames still carry 20260817, the date the automated repair ran, not
+  the judgement calls since. Kept deliberately so downstream references still resolve.

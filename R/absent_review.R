@@ -17,7 +17,9 @@
 #   A affiliation         the affiliation as published. Leave blank to skip
 #   B affiliation_simple  the short label. An existing one merges this paper into
 #                         it; a new one creates a new label, which will then want a
-#                         coordinate and will appear in coord_review.xlsx by itself
+#                         coordinate and will appear in coord_review.xlsx by itself.
+#                         Already filled in where the row had a label but no
+#                         affiliation text - leave it alone unless it is wrong
 #
 # ONE PAPER, SEVERAL AFFILIATIONS: copy the whole row, paste it below, and change
 # the affiliation. Any row carrying a citation and an affiliation is read, so the
@@ -92,10 +94,16 @@ search_url <- function(cit) {
          utils::URLencode(trimws(title), reserved = TRUE))
 }
 
+# Some rows have no affiliation text but DO already carry a label - the geocoding
+# works, only the published wording is missing. Seed the label so it is not lost:
+# the ABSENT row is dropped once the paper is supplied, and a blank column B would
+# take the label with it.
 seed <- absent %>%
   transmute(source_citation,
             n = blank(n),
-            affiliation = "", affiliation_simple = "",
+            affiliation = "",
+            affiliation_simple = ifelse(is_absent(affiliation_simple), "",
+                                        blank(affiliation_simple)),
             your_note = "", added_on = "") %>%
   left_join(others, by = "source_citation") %>%
   mutate(other_labels_on_this_paper = blank(other_labels_on_this_paper),

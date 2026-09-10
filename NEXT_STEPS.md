@@ -269,7 +269,7 @@ show `reviewed = TRUE` and it stops demanding attention.
 
 ---
 
-## Step 2 — check the coordinates already there
+## Step 2 — check the coordinates already there — done 2026-09-10
 
 The coordinate sheet only ever showed you `missing` and `conflict` labels. It never showed
 the `ok` ones, which came out of the source files unexamined. This step sweeps those, and
@@ -284,9 +284,15 @@ Rscript R/coord_review.R          # answers -> data/affiliation_decisions.csv
 python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py
 ```
 
-**15 of 284 are flagged** at 2026-09-10, all of them `coord_status = ok` — never one of
-your 99 `decided` coordinates. A further 20 disagree with `maps` but sit inside the 10 km
-coastal tolerance and are not flagged.
+**The sweep now flags 0 of 284.** It found 15 suspects on 2026-09-10, all of them
+`coord_status = ok` — never one of the 116 coordinates you had chosen — and all 15 were
+settled: 13 given a corrected coordinate, 2 signed off with `accept_as_is` because they are
+right and simply cannot pass a country test. A further 20 coordinates disagree with `maps`
+but sit inside the 10 km coastal tolerance and are not flagged.
+
+The rest of this step is the record of how it was done, and the loop still works if a
+coordinate ever needs re-opening — which is the only way an `ok` label can be, since one
+never reaches the sheet otherwise.
 
 ### What you see, and what to put in column A
 
@@ -295,8 +301,7 @@ Each suspect gets one row carrying **the coordinate as it stands**, so ticking i
 point is in, which country was expected, how far outside it sits.
 
 Where the error is arithmetic, a **second row** carries the repair, and it is only offered
-when the repaired point actually lands inside the expected country. Four of the 15 have
-one:
+when the repaired point actually lands inside the expected country. Four of the 15 had one:
 
 ```
 SU Yemen             5.3674, 44.1804   leading 1 lost from latitude  -> 15.3674, 44.1804
@@ -319,8 +324,8 @@ The usual rule applies: one `yes` per label, and the script stops rather than pi
 ### When the coordinate is right but keeps being flagged
 
 The sweep tests geography, not status, so a coordinate that is genuinely where it should be
-but disagrees with the label's country will come back every run. Two of the 15 are like
-that:
+but disagrees with the label's country comes back every run. Two of the 15 were like that,
+and both now carry an `accept_as_is` decision, which the sweep honours:
 
 - **`SIPPE CAS United States`** — the point is Shanghai and correct. The affiliation is
   `Shanghai Institute of Plant Physiology and Ecology, Shanghai, China Indiana University,
@@ -497,6 +502,12 @@ of counting from 541.
 ---
 
 ## After every change — rebuild and read the output
+
+**Save and close the sheet before running its script.** Each `*_review.R` rewrites its own
+xlsx every run; if Excel still has it open, the script reads the on-disk version without
+your unsaved edit and then overwrites the file. The edit vanishes with no error. Type →
+save → close → run.
+
 
 ```bash
 python3 R/tidy_affiliations.py      # rebuild all three deliverables
