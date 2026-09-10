@@ -4,41 +4,31 @@ Context for Claude Code working in this repository. **`NEXT_STEPS.md` is the wor
 it runs top to bottom, steps 1 to 4 are what is left, and everything after its Reference
 heading is background.
 
-## Where this is up to — 2026-09-07, start of fourth session
+## Where this is up to — 2026-09-10: the job is finished
 
-Step 0 (environment) is **done and verified**. **Step 1 (coordinate decisions) is
-FINISHED**, 2026-09-07. Step 2 (label merges) is effectively finished, though the label
-sweep below has re-opened it.
+**The build is clean and every step is done.** `data/affiliation_decisions.csv` holds
+**233 decisions, all applying**, and verify ends `41 checks, 0 failed`. Deliverable 3 is
+**298 labels: 169 ok, 116 decided, 13 absent, 0 missing, 0 conflict**. Deliverable 1 is
+1278 rows (1273 spreadsheet rows plus 5 from `data/added_affiliations.csv`), deliverable 2
+is 986 pairs. All 542 `twatasha_todo.csv` sources are represented and
+`review_unmatched_sources.csv` is empty.
 
-**The build is clean.** `data/affiliation_decisions.csv` holds **214 decisions, all
-applying**, and verify ends `41 checks, 0 failed`. Deliverable 3 is **297 labels: 185 ok,
-99 decided, 13 absent, 0 missing, 0 conflict**. Steps 0, coordinates and label merges are
-all finished — `label_review.xlsx` has no open rows, 98 merges made and 49 pairs rejected.
-Every step is finished except one open coordinate: `SNLAP Senegal`, the new label from
-the Diop et al. 2002 affiliations, is sitting in `coord_review.xlsx` as a
-`case = needs a coordinate` row waiting for a lat/long to be typed in. The sanity sweep
-flags nothing (2 labels signed off with `accept_as_is`).
+Both sheets are fully answered: `coord_review.xlsx` 116 labels settled, `label_review.xlsx`
+124 merges applied and 70 pairs rejected with none open. The coordinate sanity sweep checks
+285 coordinates and flags none, with two labels signed off by `accept_as_is`
+(`SIPPE CAS United States`, whose Shanghai coordinate is right and whose label is the
+problem, and `One World Development Group, Florida`, which names no country to test).
 
-The two dead `CIRAD France` / `MIVEGEC France` decisions that failed the 2026-09-04 build
-were cleared on 2026-09-07 by blanking `A101` and `A107` in `data/coord_review.xlsx`. The
-failure mode is documented under `R/coord_review.R`'s guards below and is the reason to
-blank column A rather than delete the decision from the CSV.
+What is left is not work: `review_simple_lumping.csv` (124) and `review_label_lumping.csv`
+(84) are the how-coarse-should-a-label-be question, deliberately not pursued;
+`review_simple_conflicts.csv` (2) and `review_label_duplicates.csv` (55) are pairs whose
+answers are recorded in `label_review.xlsx`; `review_us_uk_tokens.csv` (21) and
+`review_labels_collapsed.csv` (8) were reviewed on 2026-09-10 and left as they are.
 
-The Notre Dame merge (2026-09-07) folded `ND United States` and `Norte Dame United States`
-into **`Notre Dame United States`** — 19 rows. `unique_entries` holds that place under two
-spellings, `Norte Dame US` and `Norte Dame United States`, which `join_key` had folded into
-one conflict; the rename moved only the exactly-matching one, so the merged label fell back
-to the coordinate that had been ticked `no`. It was recovered by retargeting the sheet
-row's label (column C), not by blanking it, and now sits at `41.7050544, -86.2381188` as a
-`case = manual` row. **Retargeting column C is the move whenever a merge should keep the
-coordinate already chosen; blanking column A throws that choice away.**
-
-`U Nijmegen` was settled on 2026-09-07 as a hand-typed `case = manual` row
-(`51.82386, 5.86315`, the Radboudumc campus). It needed one because both labels merged
-into it — `RU The Netherlands` and `Department of Medical Microbiology The Netherlands` —
-took their candidate rows with them, leaving the merge target with nothing to tick. **Any
-label created by a merge has this problem**; it is why deliverable 3 showed 40 `missing`
-that morning against the sheet's 39 open rows.
+One provenance decision is still open: the deliverable filenames carry `20260817`, the date
+the automated repair ran, not the date of the judgement calls that followed. Changing that
+is one line in `tidy_affiliations.py` and changes the filename every downstream consumer
+sees.
 
 ### The label sweep — new 2026-09-07, nothing acted on
 

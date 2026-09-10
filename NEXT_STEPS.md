@@ -8,29 +8,45 @@ it. Everything after **Reference** is background you do not need in order to fin
 
 ---
 
-## Where this is up to — 2026-09-10
+## Where this is up to — 2026-09-10: finished
 
-The build is clean: **231 decisions, all applying**, and `verify` ends `41 checks, 0 failed`.
+Every step is done. The build is clean — **233 decisions, all applying**, and `verify` ends
+`41 checks, 0 failed`.
 
 | | |
 |---|---|
 | deliverable 1 `affiliations_complete_*.csv` | 1278 rows — 1273 from the spreadsheet, 5 added |
 | deliverable 2 `affiliation_lookup_*.csv` | 986 pairs |
-| deliverable 3 `affiliation_simple_coords_*.csv` | 298 labels — 170 `ok`, 114 `decided`, 13 `absent`, 1 `missing` |
+| deliverable 3 `affiliation_simple_coords_*.csv` | 298 labels — 169 `ok`, 116 `decided`, 13 `absent` |
 
-| step | | status |
+Nothing is `missing` and nothing is in `conflict`. The 13 `absent` are the round-1 source
+file's own `ABSENT`. All 542 `twatasha_todo.csv` sources are represented;
+`review_unmatched_sources.csv` is empty.
+
+| step | | |
 |---|---|---|
 | — | environment | **done** 2026-09-03 |
 | — | coordinates: every label settled | **done** 2026-09-07 |
-| **1** | merge duplicate labels | **done** 2026-09-10 — 98 merges, 49 pairs rejected |
-| **2** | check the coordinates already there | **done** 2026-09-10 — sweep flags 0 |
-| **3** | spot-checks | **done** 2026-09-10 — reviewed, nothing to change |
-| **4** | the paper with no affiliation | **done** 2026-09-10 — one coordinate outstanding |
+| **1** | merge duplicate labels | **done** — 124 merges applied, 70 pairs rejected, none open |
+| **2** | check the coordinates already there | **done** — 285 checked, 0 flagged, 2 signed off |
+| **3** | spot-checks | **done** — reviewed, nothing changed |
+| **4** | the paper version 3 never covered | **done** — 5 affiliations added, coordinate settled |
 
-**The one thing left**: `SNLAP Senegal`, the new label from the Diop et al. 2002
-affiliations, has no coordinate. It is row 2 of `data/coord_review.xlsx` as a
-`case = needs a coordinate` row — type a lat/long into H and I, `yes` in A, then
-`Rscript R/coord_review.R` and rebuild.
+**The review files that are still not empty are records, not work:**
+
+| file | rows | why it is not open work |
+|---|---|---|
+| `review_simple_conflicts.csv` | 2 | `IRD France` / `MIVEGEC / CIRAD / LIN Montpellier` and `IRD Cameroon` / `ORSTOM/ OCEAC Cameroon` — both pairs deliberately rejected in `label_review.xlsx` |
+| `review_label_duplicates.csv` | 55 | every pair is answered in the sheet: 124 applied, 70 rejected, 0 open |
+| `review_label_lumping.csv` | 84 | the granularity question, deliberately not pursued |
+| `review_simple_lumping.csv` | 124 | the same question, older form |
+| `review_us_uk_tokens.csv` | 21 | reviewed 2026-09-10, all 21 expansions correct |
+| `review_labels_collapsed.csv` | 8 | reviewed 2026-09-10, left as they are |
+| `review_coord_conflicts.csv` | 38 | raw conflicts in the source files, every one resolved by a `coordinate` decision |
+| `review_coord_sanity.csv` | 0 | sweep flags nothing |
+
+The steps below are kept as the record of how each was done, and because the loops still
+work if a label or coordinate ever needs revisiting.
 
 ---
 
