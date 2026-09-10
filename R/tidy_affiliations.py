@@ -197,6 +197,7 @@ v3['row_xlsx'] = np.arange(len(v3)) + 2
 # row, which keeps the change log honest.
 ADD_COLS = ['source_citation', 'affiliation', 'affiliation_simple', 'note', 'added_on']
 N_ADDED = 0
+N_REPLACED = 0
 if os.path.exists(F_ADD):
     add = pd.read_csv(F_ADD, dtype=str).fillna('')
     missing_cols = [c for c in ADD_COLS if c not in add.columns]
@@ -215,6 +216,21 @@ if os.path.exists(F_ADD):
         })[v3.columns]
         v3 = pd.concat([v3, extra], ignore_index=True)
         N_ADDED = len(add)
+
+        # A paper whose affiliation the source recorded as ABSENT keeps a
+        # placeholder row saying so. Once a real affiliation is supplied for that
+        # paper the placeholder is not just redundant, it is wrong -- it would
+        # show the paper as both known and unknown. So for any citation this file
+        # supplies, its ABSENT (or empty) rows are dropped.
+        supplied = set(add.source_citation)
+        aff_txt  = v3.affiliation.fillna('').str.strip().str.upper()
+        dead = (v3.source_citation.isin(supplied) & (aff_txt.isin(['', 'ABSENT']))
+                & (v3.row_xlsx < 90001))
+        N_REPLACED = int(dead.sum())
+        for i in np.where(dead)[0]:
+            log(v3.row_xlsx.iloc[i], 'affiliation', v3.affiliation.iloc[i], None,
+                'ABSENT placeholder replaced by added_affiliations.csv')
+        v3 = v3[~dead].reset_index(drop=True)
 
 ORIG = v3.copy()
 
@@ -656,7 +672,8 @@ for f in sorted(os.listdir(OUT)):
 json.dump(sums, open(f'{OUT}/checksums.json', 'w'), indent=1)
 
 print('rows', len(D1), '| deliverable2', len(D2), '| deliverable3', len(D3),
-      ('| %d added from added_affiliations.csv' % N_ADDED) if N_ADDED else '')
+      ('| %d added from added_affiliations.csv' % N_ADDED) if N_ADDED else '',
+      ('| %d ABSENT placeholder(s) replaced' % N_REPLACED) if N_REPLACED else '')
 print('changes logged', len(CHANGES))
 print('unmatched v3 rows', len(UNMATCHED), '| todo sources never filled', len(miss_src))
 print('coord status:'); print(D3.coord_status.value_counts().to_string())

@@ -8,7 +8,7 @@ it. Everything after **Reference** is background you do not need in order to fin
 
 ---
 
-## Where this is up to — 2026-09-10: finished
+## Where this is up to — 2026-09-10
 
 Every step is done. The build is clean — **233 decisions, all applying**, and `verify` ends
 `41 checks, 0 failed`.
@@ -18,6 +18,9 @@ Every step is done. The build is clean — **233 decisions, all applying**, and 
 | `output/final/affiliations_complete_*.csv` | 1278 rows — 1273 from the spreadsheet, 5 added |
 | `output/final/affiliation_lookup_*.csv` | 986 pairs |
 | `output/final/affiliation_simple_coords_*.csv` | 298 labels — 169 `ok`, 116 `decided`, 13 `absent` |
+
+**Step 5 is open**: 59 affiliations recorded as ABSENT, waiting in
+`data/absent_review.xlsx`. Everything else is done.
 
 **The three deliverables are in `output/final/`, with a README.txt that documents every
 column, what was done and the known limits.** Everything else in `output/` is working
@@ -37,6 +40,7 @@ file's own `ABSENT`. All 542 `twatasha_todo.csv` sources are represented;
 | **2** | check the coordinates already there | **done** — 285 checked, 0 flagged, 2 signed off |
 | **3** | spot-checks | **done** — reviewed, nothing changed |
 | **4** | the paper version 3 never covered | **done** — 5 affiliations added, coordinate settled |
+| **5** | affiliations the source recorded as ABSENT | **open** — 59 rows over 58 papers |
 
 **The review files that are still not empty are records, not work:**
 
@@ -439,6 +443,56 @@ Service de Parasitologie, Faculté de Médecine et de Pharmacie, UCAD  -> UCAD S
 
 The labels are editable in that file if any is wrong — change the cell and rebuild.
 `review_unmatched_sources.csv` is now empty and all 542 todo sources are represented.
+
+---
+
+## Step 5 — affiliations the source recorded as ABSENT
+
+59 rows of deliverable 1 carry `affiliation = ABSENT`, over 58 papers — whoever entered
+them could not find an affiliation. 55 of those papers are ABSENT and nothing else; three
+have real affiliations alongside a placeholder.
+
+```bash
+Rscript R/absent_review.R          # builds data/absent_review.xlsx
+# open it, type the affiliation and its label, save
+Rscript R/absent_review.R          # answers -> data/added_affiliations.csv
+python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py
+```
+
+One row per ABSENT row, open ones first. **Two columns are yours:**
+
+| column | |
+|---|---|
+| **A `affiliation`** | the affiliation as published. Leave blank to skip the paper for now |
+| **B `affiliation_simple`** | the short label |
+
+The rest is context: `source_citation`, `n` (occurrence records for the paper),
+`other_labels_on_this_paper` for the three mixed cases, and **`find_the_paper`**, a Google
+Scholar search link built from the title so you can pull the paper up in one click.
+
+**One paper, several affiliations:** copy the whole row, paste it below, change the
+affiliation. Any row carrying a citation and an affiliation is read, so nothing caps how
+many a paper can have. Do not retype the citation — copy it, or the run stops and tells you
+which one does not match.
+
+**The label decides what happens next.** An existing `affiliation_simple` folds the paper
+into that label and it inherits that label's coordinate. A new one creates a new label,
+which then wants a coordinate: it appears in `coord_review.xlsx` as a `needs a coordinate`
+row on the next run, and `absent_review.R` names every new label it sees as it writes.
+
+**The ABSENT row is dropped for you.** Once a paper has real affiliations in
+`added_affiliations.csv`, `tidy_affiliations.py` removes that paper's ABSENT placeholders —
+otherwise the paper would read as both known and unknown. The three papers that have real
+affiliations as well as a placeholder keep the real ones.
+
+Nothing is written by hand: the sheet owns the rows of `data/added_affiliations.csv` whose
+citation is one of the 58 papers, and passes every other row through, which is why the five
+Diop et al. 2002 affiliations from step 4 sit in the same file untouched.
+
+Verify was taught about row removal rather than loosened — the deliverable-1 count is
+`1273 + added - replaced`, the drift check compares against surviving rows rather than raw
+positions, and the coverage check now asserts that every todo source is represented instead
+of counting from 541.
 
 ---
 

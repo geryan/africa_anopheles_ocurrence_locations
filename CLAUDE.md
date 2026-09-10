@@ -230,6 +230,36 @@ Rules that matter:
 - `data/affiliation_decisions_EXAMPLE.csv` shows every type in use. It is illustrative —
   do not copy it into place wholesale.
 
+## Replacing an affiliation the source recorded as ABSENT
+
+59 rows of deliverable 1 carry `affiliation = ABSENT`, over 58 papers: whoever entered
+them could not find an affiliation. `R/absent_review.R` is the loop.
+
+```bash
+Rscript R/absent_review.R          # builds data/absent_review.xlsx, one row per ABSENT row
+# type the affiliation (A) and its label (B), save
+Rscript R/absent_review.R          # answers -> data/added_affiliations.csv
+python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py
+```
+
+One paper with several affiliations: copy the row, paste it below, change the affiliation.
+Any row carrying a citation and an affiliation is read, so the sheet does not cap how many
+a paper can have. An existing `affiliation_simple` folds the paper into that label; a new
+one creates a label, which then wants a coordinate and appears in `coord_review.xlsx` as a
+`needs a coordinate` row on the next run — the script names any new label it sees.
+
+**The ABSENT row itself is dropped by `tidy_affiliations.py`.** Any citation the additions
+file supplies has its ABSENT (or empty) rows removed, so the paper ends up with what was
+entered and nothing else. A paper that has real affiliations *as well as* a placeholder —
+there are three — keeps the real ones.
+
+Two assertions had to be taught about removal: the deliverable-1 row count is
+`1273 + added - replaced`, and the 20-random-row drift check compares against the rows that
+survived rather than by raw position, since a removed row shifts everything after it. The
+todo-coverage check was rewritten to assert the invariant (every todo source represented)
+rather than arithmetic on 541, because a supplied citation may be one that already had a
+row or a wholly new one.
+
 ## Adding a paper version 3 never covered
 
 `data/added_affiliations.csv` — `source_citation, affiliation, affiliation_simple, note,
@@ -260,6 +290,7 @@ every one of the 542 todo sources is represented.
 From the project root:
 
 ```bash
+Rscript R/absent_review.R           # affiliations recorded ABSENT, via data/absent_review.xlsx
 Rscript R/label_review.R            # label merges, via data/label_review.xlsx
 Rscript R/coord_review.R            # coordinate decisions, via data/coord_review.xlsx
 python3 R/tidy_affiliations.py      # rebuild all outputs
@@ -363,9 +394,12 @@ data/
   affiliation_decisions.csv     judgement calls; edit this, not the outputs
                                 (except coordinate and label_rename rows — those
                                 come from the two sheets)
-  added_affiliations.csv        rows version 3 never had; appended to v3 at load,
-                                row_xlsx 90001+. Currently the 5 affiliations of
-                                Diop et al. 2002
+  added_affiliations.csv        rows version 3 never had, and replacements for rows it
+                                recorded as ABSENT; appended to v3 at load, row_xlsx
+                                90001+. Written by R/absent_review.R for ABSENT papers;
+                                other rows (Diop et al. 2002) are passed through
+  absent_review.xlsx            the ABSENT sheet; type the affiliation and its label,
+                                generated+read by R/absent_review.R
   coord_review.xlsx             the coordinate sheet; tick `accepted`, generated+read by R/coord_review.R
   label_review.xlsx             the label-merge sheet; tick `accepted` (A), set
                                 `keep` (C), read `warning` (O) before ticking;
@@ -389,6 +423,8 @@ R/
   coord_review.R                the coordinate spreadsheet loop; runs, tested
   label_review.R                the label-merge spreadsheet loop; owns every
                                 label_rename row and patches coord_review.xlsx
+  absent_review.R               the ABSENT-affiliation loop; turns data/absent_review.xlsx
+                                into the rows of data/added_affiliations.csv
   sources_to_check.R            produced output/twatasha_todo.csv
   unique_affils.R, reseach_locations.R   round-1 scripts, historical
 output/

@@ -23,6 +23,14 @@ if os.path.exists(f_add):
 else:
     ADD = pd.DataFrame(columns=['source_citation', 'affiliation', 'affiliation_simple'])
 N_ADDED = len(ADD)
+
+# tidy drops the ABSENT placeholder of any paper the additions file supplies, so
+# the expected row count is 1273 + added - replaced. Recomputed here from the
+# spreadsheet rather than taken on trust.
+_orig_aff = orig['affiliation'].fillna('').str.strip().str.upper()
+_mask = (orig['source_citation'].isin(set(ADD.source_citation))
+         & _orig_aff.isin(['', 'ABSENT']))
+N_REPLACED = int(_mask.sum())
 def added_nonnull(col):
     if col not in ADD.columns: return 0
     return int((ADD[col].str.strip() != '').sum())
@@ -33,9 +41,11 @@ def check(name, cond, detail=''):
     print(('PASS  ' if cond else 'FAIL  ') + name + (('  ' + detail) if detail else ''))
 
 # --- shape ---------------------------------------------------------------
-check(f'deliverable 1 has {1273 + N_ADDED} rows (1273 xlsx rows'
-      + (f' + {N_ADDED} from added_affiliations.csv)' if N_ADDED else ')'),
-      len(D1) == 1273 + N_ADDED, f'{len(D1)}')
+check(f'deliverable 1 has {1273 + N_ADDED - N_REPLACED} rows (1273 xlsx rows'
+      + (f' + {N_ADDED} added' if N_ADDED else '')
+      + (f' - {N_REPLACED} ABSENT placeholder(s) replaced' if N_REPLACED else '')
+      + ')',
+      len(D1) == 1273 + N_ADDED - N_REPLACED, f'{len(D1)}')
 check('column set unchanged',
       list(D1.columns) == ['source_citation', 'n', 'affiliation_original',
                            'affiliation', 'affiliation_simple'])
@@ -49,11 +59,14 @@ nmap = dict(zip(todo.source_citation, todo.n))
 bad_n = (D1.n.astype(str) != D1.source_citation.map(nmap).astype(str)).sum()
 check('n agrees with twatasha_todo.csv on every row', bad_n == 0, f'{bad_n} mismatches')
 # 541 of the 542 todo sources had an affiliation in version 3; the 542nd
-# (Diop et al. 2002) is supplied by data/added_affiliations.csv, so the target
-# rises as rows are added there.
-n_src_expected = 541 + ADD.source_citation.nunique()
-check(f'{n_src_expected} of 542 todo sources represented',
-      D1.source_citation.nunique() == n_src_expected, str(D1.source_citation.nunique()))
+# (Diop et al. 2002) came from data/added_affiliations.csv. Assert the invariant
+# rather than a count, because a citation supplied by that file may be one that
+# already had a row -- an ABSENT placeholder being replaced -- or a wholly new
+# one, and arithmetic on 541 cannot tell the two apart.
+_unrepresented = set(todo.source_citation) - set(D1.source_citation)
+check(f'every todo source is represented ({D1.source_citation.nunique()} of {todo.source_citation.nunique()})',
+      len(_unrepresented) == 0,
+      '' if not _unrepresented else f'{len(_unrepresented)} missing')
 check('no blank source_citation remains', D1.source_citation.notna().all())
 
 # --- damage eradicated ----------------------------------------------------
@@ -179,13 +192,18 @@ def canon(s):
     s = re.sub(r'United States', 'us', s); s = re.sub(r'United Kingdom', 'uk', s)
     return re.sub(r'[^a-z0-9]', '', s.lower())
 
+# Rows dropped as replaced ABSENT placeholders shift every position after them,
+# so compare against the rows that actually survived, in order. Added rows sit
+# after these and are not part of a content-preservation check.
+orig_kept = orig[~_mask].reset_index(drop=True) if N_REPLACED else orig
+
 random.seed(20260817)
-idx = random.sample(range(len(orig)), 20)
+idx = random.sample(range(len(orig_kept)), 20)
 drift = []
 skipped = 0
 for i in idx:
     for col in ['affiliation', 'affiliation_simple']:
-        b, a = orig[col].iloc[i], D1[col].iloc[i]
+        b, a = orig_kept[col].iloc[i], D1[col].iloc[i]
         if canon(b) == canon(a):
             continue
         # a deliberate decision is not drift
@@ -203,8 +221,14 @@ for d in drift[:10]:
     print('   row', d[0], d[1], '\n      before:', repr(d[2])[:160], '\n      after :', repr(d[3])[:160])
 
 # --- no content lost -----------------------------------------------------
+# The replaced placeholders were non-null in the spreadsheet ('ABSENT' is a
+# value), so they come off the expected count too.
+_replaced_nonnull = {}
+for _c in ['affiliation', 'affiliation_simple', 'affiliation_original']:
+    _replaced_nonnull[_c] = int(orig.loc[_mask, _c].notna().sum())
+
 for col in ['affiliation', 'affiliation_simple', 'affiliation_original']:
-    expect = orig[col].notna().sum() + added_nonnull(col)
+    expect = orig[col].notna().sum() + added_nonnull(col) - _replaced_nonnull[col]
     check(f'{col} non-null count preserved',
           expect == D1[col].notna().sum(),
           f'{expect} -> {D1[col].notna().sum()}'
