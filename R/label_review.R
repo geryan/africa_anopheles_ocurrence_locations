@@ -104,6 +104,21 @@ newest <- function(pattern) {
 pair_key <- function(a, b) ifelse(a < b, paste(a, b, sep = "\001"),
                                         paste(b, a, sep = "\001"))
 
+# Transcription of join_key() in tidy_affiliations.py:164, the same one
+# coord_review.R carries. Used here only to refuse a new label whose key matches a
+# label that already exists: tidy_affiliations.py would then call a `coordinate`
+# decision naming either of them ambiguous.
+join_key <- function(s) {
+  s <- gsub("United States", "\001", s, fixed = TRUE)
+  s <- gsub("United Kingdom", "\002", s, fixed = TRUE)
+  s <- gsub("u\\.?s\\.?a\\.?", "\001", s, perl = TRUE, ignore.case = TRUE)
+  s <- gsub("u\\.?s\\.?",      "\001", s, perl = TRUE, ignore.case = TRUE)
+  s <- gsub("u\\.?k\\.?",      "\002", s, perl = TRUE, ignore.case = TRUE)
+  s <- stringi::stri_trans_nfkd(s)
+  s <- gsub("\\p{Mn}", "", s, perl = TRUE)
+  gsub("[^a-z0-9\001\002]", "", tolower(s), perl = TRUE)
+}
+
 # --- the labels as they stand --------------------------------------------------
 
 d3 <- read_csv(newest("^affiliation_simple_coords_\\d{8}\\.csv$"),
@@ -225,6 +240,13 @@ read_answers <- function() {
              accepted %in% c("n", "no", "false", "0")      ~ "no",
              accepted == ""                                 ~ "",
              TRUE                                           ~ accepted),
+           # `new: DRASS Reunion` in `keep` merges the row into a label of that
+           # name, creating it. The marker is deliberate: a bare unknown name is
+           # far more often a typo, and without the marker that typo would rename
+           # real labels into something nobody meant. The prefix is stripped here,
+           # so the sheet shows the plain name from the next run on.
+           keep_new = grepl("^new:", keep, ignore.case = TRUE),
+           keep     = trimws(sub("^new:", "", keep, ignore.case = TRUE)),
            pk = pair_key(label_a, label_b))
 }
 
@@ -242,6 +264,7 @@ prior_new <- prior %>%
   filter(!pk %in% ans$pk)
 if (nrow(prior_new))
   ans <- bind_rows(ans, transmute(prior_new, pk, accepted = "yes", keep,
+                                  keep_new = FALSE,
                                   label_a, label_b, your_note, decided_on))
 
 # --- 4. the sheet ---------------------------------------------------------------
@@ -257,11 +280,12 @@ carried <- ans %>%
             distance_km = "", detail = "")
 
 cand <- bind_rows(cand, carried) %>%
-  left_join(select(ans, pk, accepted, keep_ans = keep, your_note, decided_on),
+  left_join(select(ans, pk, accepted, keep_ans = keep, keep_new, your_note, decided_on),
             by = "pk") %>%
   mutate(accepted   = blank(accepted),
          your_note  = blank(your_note),
          decided_on = blank(decided_on),
+         keep_new   = !is.na(keep_new) & keep_new,
          keep       = ifelse(nzchar(blank(keep_ans)), blank(keep_ans),
                              default_keep(label_a, label_b)))
 
@@ -272,12 +296,31 @@ cand <- bind_rows(cand, carried) %>%
 known <- unique(c(live,
                   cand$label_a[cand$accepted == "yes"],
                   cand$label_b[cand$accepted == "yes"]))
-bad_keep <- cand$accepted == "yes" & !(cand$keep %in% known)
+bad_keep <- cand$accepted == "yes" & !(cand$keep %in% known) & !cand$keep_new
 if (any(bad_keep)) {
   cat("`keep` must be an affiliation_simple that exists. These do not:\n")
   cat(sprintf("  keep=%s   (row: %s | %s)\n", cand$keep[bad_keep],
               cand$label_a[bad_keep], cand$label_b[bad_keep]), sep = "")
-  stop("fix `keep` in ", basename(F_SHEET), call. = FALSE)
+  stop("fix `keep` in ", basename(F_SHEET), ", or write it as `new: <name>` to ",
+       "merge the row into a label of that name and create it", call. = FALSE)
+}
+
+# A `new:` name that is not new. Two labels whose join_key matches make every
+# `coordinate` decision naming either of them ambiguous in tidy_affiliations.py,
+# so such a name is refused rather than created.
+new_named <- cand$accepted == "yes" & cand$keep_new
+if (any(new_named)) {
+  made  <- unique(cand$keep[new_named])
+  clash <- made[join_key(made) %in% join_key(live)]
+  if (length(clash)) {
+    cat("`new:` names a label that already exists, or resolves to one:\n")
+    for (x in clash)
+      cat(sprintf("  new: %-36s -> %s\n", x,
+                  paste(live[join_key(live) == join_key(x)], collapse = ", ")))
+    stop("drop the `new:` to merge into it, or choose another name", call. = FALSE)
+  }
+  cat(sprintf("new label%s created by this run: %s\n",
+              if (length(made) > 1) "s" else "", paste(made, collapse = "; ")))
 }
 
 # --- 5. resolve the accepted merges into groups --------------------------------
@@ -286,6 +329,22 @@ acc <- cand %>% filter(accepted == "yes")
 
 renames <- tibble(target = character(), new_value = character(),
                   note = character(), decided_on = character())
+
+# A rename is dated when it was first applied, not when this script last ran.
+# Most applied rows carry no date in the sheet, and falling back to `today` on
+# every run re-dated them all each time: on 2026-09-11 it moved 67 renames from
+# 2026-09-10, itself only the previous run's date. So the sheet's date if one
+# was given, else the date already recorded for this same rename, else today.
+recorded_on <- existing %>%
+  filter(decision_type == "label_rename", nzchar(blank(decided_on))) %>%
+  distinct(target, new_value, .keep_all = TRUE)
+recorded_on <- setNames(recorded_on$decided_on,
+                        paste(recorded_on$target, recorded_on$new_value, sep = "\r"))
+date_for <- function(sheet_date, target, new_value) {
+  if (!is.na(sheet_date) && nzchar(sheet_date)) return(sheet_date)
+  d <- unname(recorded_on[paste(target, new_value, sep = "\r")])
+  if (length(d) == 1L && !is.na(d)) d else today
+}
 
 if (nrow(acc)) {
   labs <- unique(c(acc$label_a, acc$label_b, acc$keep))
@@ -323,8 +382,8 @@ if (nrow(acc)) {
         target = m, new_value = surv,
         note = if (!is.na(row) && nzchar(acc$your_note[row])) acc$your_note[row]
                else sprintf("merged into %s", surv),
-        decided_on = if (!is.na(row) && nzchar(acc$decided_on[row]))
-                       acc$decided_on[row] else today))
+        decided_on = date_for(if (!is.na(row)) acc$decided_on[row] else NA_character_,
+                              m, surv)))
     }
   }
 }

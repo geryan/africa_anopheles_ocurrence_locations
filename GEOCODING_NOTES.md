@@ -1,13 +1,16 @@
 # Proposed coordinates for the 88 missing affiliations
 
-Produced 2026-08-18. **These are proposals, not decisions.** Nothing has been written into
-the deliverables. To adopt them, copy `output/proposed_decisions_coords.csv` over
-`data/affiliation_decisions.csv` and re-run the pipeline.
+Produced 2026-08-18. **These are proposals, not decisions, and this note is out of date.**
+All 88 labels have since been settled one at a time through `data/coord_review.xlsx` and
+`data/label_review.xlsx`. This note originally said to adopt the proposals by copying
+`output/proposed_decisions_coords.csv` over `data/affiliation_decisions.csv`. **Never do
+that.** The decisions file is the record of every change and is only ever added to;
+replacing it would destroy every decision in it — rule 2 in `CLAUDE.md`.
 
 | file | what it is |
 |---|---|
 | `output/proposed_coords_missing88_20260818.csv` | the table you asked for: 88 rows, coordinate, source name, source URL, Google Maps link, OSM link, precision, confidence, notes |
-| `output/proposed_decisions_coords.csv` | the same 88 as `coordinate` rows in decisions-file format, ready to drop in |
+| `output/proposed_decisions_coords.csv` | the same 88 as `coordinate` rows in decisions-file format. Superseded; never copy it over the decisions file |
 
 ## Coverage and quality
 

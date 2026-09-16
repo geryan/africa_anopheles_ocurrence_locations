@@ -1,88 +1,134 @@
-Continuing the affiliation cleanup, fifth session. Read CLAUDE.md — the "Where this is up
-to" section is the current state and is accurate as of the end of the last session. Read
-NEXT_STEPS.md for the work: it runs top to bottom, steps 1 to 5, and everything after the
-Reference heading is background. Do not read anything else to get oriented, and do not
-re-audit the project.
+Continuing the affiliation cleanup, sixth session. Read CLAUDE.md — "Where this is up to"
+and the section under it, "The absent coordinates", are the current state and are accurate.
+Then read step 6 of NEXT_STEPS.md, which is the work. Do not read anything else to get
+oriented, and do not re-audit the project.
 
-STATE. The build is clean: 233 decisions, all applying, and `python3
-R/verify_affiliations.py` ends `41 checks, 0 failed`. The three deliverables are in
-output/final/ (1278 rows, 986 lookup pairs, 298 labels — 169 ok, 116 decided, 13 absent,
-nothing missing or in conflict), with a README.txt there documenting every column. Steps 1
-to 4 are done: labels merged, every coordinate settled, the coordinate sanity sweep flags
-0 of 284, spot-checks reviewed, and the one paper version 3 never covered has its five
-affiliations in.
+STATE. The build is clean: 247 decisions, all applying, and `python3
+R/verify_affiliations.py` ends `42 checks, 0 failed`. The three deliverables are in
+output/final/ — 1308 rows, 1039 lookup pairs, 309 labels (169 ok, 127 decided, 13 absent,
+nothing missing, nothing in conflict) — with a README.txt documenting every column. All 542
+papers are represented. Steps 1 to 5 are done: labels merged, every coordinate settled, the
+sanity sweep flagging 0 of 296, spot-checks reviewed, the paper version 3 never covered
+added, and every affiliation recorded ABSENT gone through.
 
 FIRST ACTION: run `python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py` and
-tell me the counts. Expect 41 checks, 0 failed. Then wait.
+tell me the counts. Expect 42 checks, 0 failed. Then wait.
 
-WHAT IS OPEN — step 5, and nothing else. 59 rows of deliverable 1 carry `affiliation =
-ABSENT`, over 58 papers: whoever entered them could not find an affiliation. They are in
-data/absent_review.xlsx, all open, one row per ABSENT row. I type the affiliation into
-column A and its label into column B. 55 of the papers are ABSENT and nothing else; 3 have
-real affiliations alongside a placeholder, and their existing labels show in
-`other_labels_on_this_paper`; 2 rows arrive with column B already filled because the row
-had a label but no affiliation text — leave those labels alone unless they are wrong.
+WHAT IS OPEN — step 6, and nothing else. 13 labels in deliverable 3 have `coord_status =
+absent`. The label ABSENT itself is final and stays: those 23 papers have no affiliation, so
+there is nothing to geocode. The other 12 are real institutions, one row of deliverable 1
+each, 337 occurrence records between them, and nobody has ever looked at them. `absent`
+means only that the round-1 coordinate file had ABSENT in its lat/long cells.
 
-Loop, every time: `Rscript R/absent_review.R` → I edit the sheet → `Rscript
-R/absent_review.R` → `python3 R/tidy_affiliations.py && python3
-R/verify_affiliations.py`. Report the counts and anything that did not apply. A new label
-in column B creates a new label, which then wants a coordinate and appears in
-coord_review.xlsx as a `needs a coordinate` row — tell me when that happens.
+  68  Mission for the Prevention and Fight against Vector Endemics, Réunion, France
+  64  DRASS France                                    (its affiliation says Saint-Denis de La Réunion)
+  56  Department of Parasitology-Medical and Molecular Mycology … Grenoble, La Tronche, France
+  34  Division of Environmental Hygiene and Sanitation, N'Djamena Chad
+  32  Medical Entomology Department, French Cooperation Mission, Kinshasa, Zaire.
+  24  Laboratoire de Biologie des Invertébrés, I.N.R.A., Antibes, France
+  20  LRP Cameroon                                    (names no city; this one needs the paper)
+  12  BMC-series Journals, BioMed Central … London, UK (the publisher's address, not a research centre)
+  12  Centro Hispano-Guineano de Enfermedades Tropicales, Malabo, Equatorial Guinea
+   6  Project CIBP/MEAVSB, Garoua, Cameroon
+   5  Laboratory of Bio-Pedology, Dakar, Senegal
+   4  National Center for the Fight against Malaria, Ouagadougou, Burkina Faso
+
+BUILD THE LOOP BEFORE ANYTHING ELSE. None of these reaches me as things stand:
+coord_review.xlsx builds its `needs a coordinate` rows from `coord_status == "missing"` only
+(R/coord_review.R:218), and the sanity sweep only sees labels that already have a
+coordinate, which is exactly how these 12 stayed invisible. So:
+
+  1. let those orphan rows take `absent` as well as `missing`, excluding the label ABSENT;
+  2. check the merged-away guard at R/coord_review.R:244 does not drop them — check, do not
+     assume;
+  3. no pipeline change is needed: tidy_affiliations.py sets `absent` at line 557 and
+     applies `coordinate` decisions at line 580, so a decision wins and the label becomes
+     `decided`;
+  4. run `Rscript R/coord_review.R` and tell me how many open rows appear. Then wait.
+
+Loop, every time after that: `Rscript R/coord_review.R` → I type latitude (H), longitude
+(I) and the link in your_note (M), put yes in A, save, close → `Rscript R/coord_review.R` →
+`python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py` → `Rscript
+R/check_coord_sanity.R`, which will sweep them once they have coordinates. Report the counts
+and anything that did not apply.
+
+THREE ANSWERS ARE POSSIBLE PER LABEL and all three are mine: a coordinate; a merge into a
+label that already exists, which is label_review.xlsx and is worth settling first; or left
+`absent` with accept_as_is or note_only recording that it was looked at.
+
+BEFORE I GEOCODE, PUT THESE IN FRONT OF ME as facts with row counts and coordinates, no
+recommendation. They are in step 6 of NEXT_STEPS.md in full:
+  - DRASS France against the existing label "Vector Control Service, Regional Directorate of
+    Health and Social Affairs, Saint-Denis de La Réunion, France", which already carries
+    −20.8828812, 55.4579987. Same words, different order.
+  - "Mission for the Prevention and Fight against Vector Endemics, Réunion, France", Réunion
+    vector control under another name.
+  - "National Center for the Fight against Malaria, Ouagadougou, Burkina Faso" against CNRFP
+    Burkina Faso (12.349733, −1.4903285). The same name without "Ouagadougou" was merged
+    into CNRFP on 2026-09-11, but lutte contre le paludisme and recherche et de formation
+    sur le paludisme are different French names. check_label_candidates.R does not raise it.
+  - Not a candidate, a trap: the Grenoble parasitology-mycology label and the Libreville one
+    have nearly the same name and are 5,000 km apart. Do not merge them.
 
 HOW WE WORK. There are four sheet-and-script loops and I make every judgement call in a
 sheet. You never put an answer in a sheet for me — not yes/no, not a coordinate, not a
 label. You run the scripts, rebuild, verify, and report.
 
-  R/absent_review.R   data/absent_review.xlsx   ABSENT affiliations   <- the live one
-  R/coord_review.R    data/coord_review.xlsx    coordinates
+  R/coord_review.R    data/coord_review.xlsx    coordinates          <- the live one
   R/label_review.R    data/label_review.xlsx    label merges
+  R/absent_review.R   data/absent_review.xlsx   ABSENT affiliations
   R/check_coord_sanity.R and R/check_label_candidates.R are read-only sweeps that feed
   the first two.
 
 Run label_review.R before coord_review.R when both are in play: a merge patches the
 coordinate sheet and coord_review.R turns that patch back into decisions.
 
+NEVER overwrite data/affiliation_decisions.csv — only add to it. It is the record of every
+change. The only rows ever rewritten are the `coordinate` and `label_rename` rows, which
+their own scripts regenerate from their sheets. That is rule 2 in CLAUDE.md.
+
 Never hand me a manual procedure for work that recurs. If a task needs the same judgement
-made repeatedly and no mechanism exists, say so plainly and build the loop — that is what
-the four scripts are. Check the work actually surfaces where I am working; twice I have
-been told to act on something that had no way of reaching me.
+made repeatedly and no mechanism exists, say so plainly and build the loop. Check the work
+actually surfaces where I am working; this step exists because 12 labels never did.
 
 If verify fails after a change that legitimately moves a count, teach the assertion the new
-expectation, computed from the same inputs. Do not loosen or delete it. See the section in
-CLAUDE.md.
+expectation, computed from the same inputs. Do not loosen or delete it, and do not compute
+the expectation the same way the pipeline does — that is how a real bug passed verify on
+2026-09-11. It runs 36 checks with an empty decisions file, 41 with decisions, 42 once
+added_affiliations.csv holds rows.
 
 WHEN I ASK ABOUT A LABEL. Answer from the review CSVs in output/ plus a web search if the
-institution is unclear. Do not volunteer opinions on labels I have not asked about —
-EXCEPT that when I name a label to merge or rename, list every other label naming the same
+institution is unclear. Do not volunteer opinions on labels I have not asked about — EXCEPT
+that when I name a label to merge or rename, list every other label naming the same
 institution, place or acronym, with row counts, coordinates and coord_status, as a short
 block with no recommendation. Typos, institution identity and coordinate choices are my
-calls: surface them, do not settle them. If I write a label name that looks like a slip,
-ask before writing it into a deliverable.
+calls: surface them, do not settle them. If I write a label name that looks like a slip, ask
+before writing it into a deliverable.
 
 TRAPS THAT HAVE COST TIME.
 
 - The scripts rewrite their own xlsx on every run. If the sheet is still open in Excel the
   script reads the on-disk version without my unsaved edit and then overwrites the file —
-  the edit vanishes silently. Remind me: type, save, close, run. This lost a coordinate on
-  2026-09-10.
+  the edit vanishes silently. Remind me: type, save, close, run.
 - The build goes stale quietly. `*_review.R` writes decisions; nothing is in the
-  deliverables until `tidy_affiliations.py` runs. Twice a "failure" was just a missing
-  rebuild.
-- After a batch of merges the coordinate sheet can need two passes: coord_review.R reads
-  the current deliverables, so run it, rebuild, then run it again if stale rows remain.
+  deliverables until `tidy_affiliations.py` runs.
+- After a batch of merges the coordinate sheet can need two passes: coord_review.R reads the
+  current deliverables, so run it, rebuild, then run it again if stale rows remain.
+- A sweep saying "0 flagged" only covers what it can see. check_coord_sanity.R sweeps labels
+  that have a coordinate, so it says nothing about a label that has none.
 - output/final/ holds the deliverables. output/parity_baseline/ is a frozen pre-decisions
   build kept only as a test fixture — it still shows 88 missing and 29 conflict and is NOT
-  the product. It was called output/shipped/ until 2026-09-10, and that name caused exactly
-  the confusion you would expect. Both directories have a README.txt.
+  the product. Both directories have a README.txt.
+- The `decided_on` dates on label_rename rows are immaterial and settled; do not raise them.
 
 NEVER READ, they are huge and irrelevant: data/vector_extraction_data.csv,
 output/diff_report_*.csv, output/review_encoding_repairs.csv,
-output/review_simple_lumping.csv, and any .tif/.geotiff/.zip. Use grep or head on the
-review CSVs; never cat one whole.
+output/review_simple_lumping.csv, and any .tif/.geotiff/.zip. Use grep or head on the review
+CSVs; never cat one whole.
 
 STILL OPEN, LOWER PRIORITY, do not start unless I ask:
-- output/review_label_lumping.csv (84) and output/review_simple_lumping.csv (124): how
+- output/review_label_lumping.csv (87) and output/review_simple_lumping.csv (132): how
   coarse a label should be. `SAP Italy` covers 45 affiliation strings, `OCEAC Cameroon` 28.
   Deliberately not pursued.
-- The deliverable filenames still carry 20260817, the date the automated repair ran, not
-  the judgement calls since. Kept deliberately so downstream references still resolve.
+- The deliverable filenames still carry 20260817, the date the automated repair ran, not the
+  judgement calls since. Kept deliberately so downstream references still resolve.

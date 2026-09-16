@@ -16,6 +16,10 @@
 # gets two rows; put yes against the one you want. Two yeses for one label is
 # an error and the script stops rather than picking for you.
 #
+# A label that is staying without a coordinate takes `absent` in column A instead,
+# with the reason in `your_note`: that appends an `accept_as_is` row to the decisions
+# file and the label stops being offered. See section 3b.
+#
 # The sheet is .xlsx, not .csv, deliberately. Excel round-trips xlsx as UTF-8
 # without touching the accents, so this is the one project file it is safe to
 # open, edit and save. See CLAUDE.md rule 1 for what happened to the CSVs.
@@ -90,6 +94,17 @@ aff_by_label <- function() {
       affiliation           = paste(sort(unique(affiliation)), collapse = " | "),
       affiliation_simple_v3 = paste(sort(unique(affiliation_simple)), collapse = " | "),
       .groups = "drop")
+}
+
+# Labels signed off with `accept_as_is` or `note_only`: looked at, and staying as
+# they are. check_coord_sanity.R honours the same two types.
+signed_off_labels <- function() {
+  if (!file.exists(F_DECISIONS)) return(character())
+  d <- read_csv(F_DECISIONS, col_types = cols(.default = col_character()),
+                progress = FALSE)
+  if (!all(c("decision_type", "target") %in% names(d))) return(character())
+  x <- d$target[d$decision_type %in% c("accept_as_is", "note_only")]
+  unique(x[!is.na(x)])
 }
 
 # ---- 1. the candidate rows ---------------------------------------------------
@@ -208,14 +223,30 @@ build_candidates <- function() {
     bind_rows(current, repaired)
   } else NULL
 
-  # A label that deliverable 3 says is `missing` but that no source offers a
+  # A label that deliverable 3 gives no coordinate but that no source offers a
   # candidate for would never reach this sheet at all -- the trap that hid
   # `U Nijmegen` in September. Give it an empty row to type into instead.
+  #
+  # `absent` counts as well as `missing`. It means only that the round-1 coordinate
+  # file had ABSENT in its latitude and longitude cells, not that no coordinate
+  # exists, and it kept twelve real institutions off this sheet until 2026-09-15.
+  # Two kinds of label are left out: `ABSENT` itself, which stands for papers with
+  # no affiliation and so names nothing to geocode, and a label signed off with
+  # accept_as_is or note_only, which is how one is left without a coordinate on
+  # purpose.
   offered <- unique(c(missing_rows$affiliation_simple, conflict_rows$affiliation_simple,
                       sanity_rows$affiliation_simple))
   d3 <- read_csv(F_COORDS, show_col_types = FALSE, progress = FALSE)
   orphan <- d3 %>%
-    filter(coord_status == "missing", !affiliation_simple %in% offered)
+    filter(coord_status %in% c("missing", "absent"), affiliation_simple != "ABSENT",
+           !affiliation_simple %in% offered)
+  staying <- join_key(orphan$affiliation_simple) %in% join_key(signed_off_labels())
+  if (any(staying)) {
+    cat(sprintf("left without a coordinate, signed off with accept_as_is/note_only: %d\n",
+                sum(staying)))
+    cat(sprintf("  %s\n", orphan$affiliation_simple[staying]), sep = "")
+    orphan <- orphan[!staying, , drop = FALSE]
+  }
   orphan_rows <- if (nrow(orphan)) tibble(
     affiliation_simple = orphan$affiliation_simple,
     case = "needs a coordinate", latitude = NA_real_, longitude = NA_real_,
@@ -225,7 +256,9 @@ build_candidates <- function() {
     source_name = "", source_url = "", google_maps = "",
     nearest_existing_label = "", nearest_existing_km = NA_real_,
     same_coord_group = "",
-    geocoder_notes = "this label has no coordinate and nothing proposed one",
+    geocoder_notes = ifelse(orphan$coord_status == "absent",
+      "the round-1 coordinate file recorded ABSENT for this label, and nothing has proposed a coordinate",
+      "this label has no coordinate and nothing proposed one"),
     existing_project_note = "") else NULL
 
   out <- bind_rows(missing_rows, conflict_rows, sanity_rows, orphan_rows) %>%
@@ -259,34 +292,55 @@ build_candidates <- function() {
 
 # ---- 2. your answers from last time ------------------------------------------
 
+# Every row of the sheet that carries a label, with or without a coordinate. The
+# rows without one come back too, so that anything typed on them can be named
+# rather than vanishing when the sheet is rewritten.
 read_answers <- function() {
   if (!file.exists(F_SHEET)) {
     return(tibble(k = character(), accepted = character(),
                   your_note = character(), decided_on = character(),
                   latitude = numeric(), longitude = numeric(),
-                  affiliation_simple = character(), manual = logical()))
+                  affiliation_simple = character(), case = character()))
   }
   s <- readxl::read_excel(F_SHEET, col_types = "text")
   for (cl in c("accepted", "your_note", "decided_on", "affiliation_simple",
-               "latitude", "longitude"))
+               "latitude", "longitude", "case"))
     if (!cl %in% names(s)) s[[cl]] <- NA_character_
 
-  s %>%
-    filter(!is.na(affiliation_simple), nzchar(trimws(affiliation_simple)),
-           !is.na(latitude), !is.na(longitude)) %>%
+  # A coordinate copied from a web page can carry U+2212 rather than "-"; it is
+  # read as the minus sign it is.
+  s <- s %>%
+    filter(!is.na(affiliation_simple), nzchar(trimws(affiliation_simple))) %>%
     transmute(
       affiliation_simple = trimws(affiliation_simple),
-      latitude  = suppressWarnings(as.numeric(latitude)),
-      longitude = suppressWarnings(as.numeric(longitude)),
+      case      = blank(case),
+      lat_txt   = trimws(gsub("−", "-", blank(latitude), fixed = TRUE)),
+      lon_txt   = trimws(gsub("−", "-", blank(longitude), fixed = TRUE)),
+      latitude  = suppressWarnings(as.numeric(lat_txt)),
+      longitude = suppressWarnings(as.numeric(lon_txt)),
       accepted  = tolower(trimws(blank(accepted))),
       your_note = blank(your_note),
-      decided_on = blank(decided_on)
-    ) %>%
-    filter(!is.na(latitude), !is.na(longitude)) %>%
+      decided_on = blank(decided_on))
+
+  # Anything in H or I that is not a number used to be dropped without a word,
+  # taking the row's answer with it. Stop instead, before anything is written, so
+  # the sheet on disk still holds what was typed.
+  unreadable <- s %>%
+    filter((nzchar(lat_txt) | nzchar(lon_txt)) & (is.na(latitude) | is.na(longitude)))
+  if (nrow(unreadable))
+    stop("latitude (H) and longitude (I) must both be plain numbers in decimal degrees,\n",
+         "one in each column. Not readable:\n",
+         paste(sprintf("  %-40s H '%s'  I '%s'", unreadable$affiliation_simple,
+                       unreadable$lat_txt, unreadable$lon_txt), collapse = "\n"),
+         "\nNothing was written.", call. = FALSE)
+
+  s %>%
+    select(-lat_txt, -lon_txt) %>%
     mutate(
       accepted = case_when(
         accepted %in% c("y", "yes", "true", "1", "x") ~ "yes",
         accepted %in% c("n", "no", "false", "0")      ~ "no",
+        accepted %in% c("absent", "leave absent")     ~ "absent",
         accepted == ""                                 ~ "",
         TRUE                                           ~ accepted),
       k = key(affiliation_simple, latitude, longitude))
@@ -294,17 +348,61 @@ read_answers <- function() {
 
 # ---- 3. join, validate -------------------------------------------------------
 
-cand <- build_candidates()
-ans  <- read_answers()
+cand     <- build_candidates()
+sheet_in <- read_answers()
+ans      <- filter(sheet_in, !is.na(latitude), !is.na(longitude))
+
+# `absent` is an answer about the label -- it stays without a coordinate -- so on a
+# row that carries one it contradicts itself.
+contradiction <- filter(ans, accepted == "absent")
+if (nrow(contradiction))
+  stop("`absent` in column A says the label stays without a coordinate, but these rows\n",
+       "carry one. Clear H and I to sign the label off, or put yes to take the\n",
+       "coordinate:\n",
+       paste(sprintf("  %-40s %s, %s", contradiction$affiliation_simple,
+                     contradiction$latitude, contradiction$longitude), collapse = "\n"),
+       "\nNothing was written.", call. = FALSE)
 
 bad <- setdiff(unique(ans$accepted), c("", "yes", "no"))
 if (length(bad))
-  stop("`accepted` must be yes, no or blank. Found: ",
+  stop("`accepted` must be yes, no, absent or blank. Found: ",
        paste(sprintf("'%s'", bad), collapse = ", "), call. = FALSE)
+
+# ---- 3b. labels left without a coordinate ------------------------------------
+#
+# The third answer, beside a coordinate and a merge: this label stays without one.
+# `absent` in column A of a row with no coordinate writes an `accept_as_is` decision,
+# which is what the hand-written sign-offs already in the file are, and what both the
+# orphan filter above and check_coord_sanity.R honour. From the next run on the label
+# is no longer offered, and every run names it.
+#
+# These rows are appended and never rewritten: the decisions file is the record of
+# every change (rule 2 in CLAUDE.md), and a sign-off already in it is left exactly as
+# it stands. So blanking column A does not undo one -- that means taking the line out
+# of the file deliberately.
+real_labels <- unique(read_csv(F_LOOKUP, show_col_types = FALSE,
+                               progress = FALSE)$affiliation_simple)
+
+signoff <- sheet_in %>%
+  filter(accepted == "absent", is.na(latitude), is.na(longitude)) %>%
+  distinct(affiliation_simple, .keep_all = TRUE)
+
+unknown <- filter(signoff, !join_key(affiliation_simple) %in% join_key(real_labels))
+if (nrow(unknown)) {
+  cat(sprintf("not a label in the deliverables, so not signed off: %d\n", nrow(unknown)))
+  cat(sprintf("  %s\n", unknown$affiliation_simple), sep = "")
+  signoff <- filter(signoff, !affiliation_simple %in% unknown$affiliation_simple)
+}
+
+# What a candidate row can carry back: an answer keyed to its coordinate, or an
+# `absent` sign-off keyed to a label that has none.
+carried <- sheet_in %>%
+  filter((!is.na(latitude) & !is.na(longitude)) | accepted == "absent") %>%
+  distinct(k, .keep_all = TRUE)
 
 cand <- cand %>%
   mutate(k = key(affiliation_simple, latitude, longitude)) %>%
-  left_join(select(ans, k, accepted, your_note, decided_on), by = "k") %>%
+  left_join(select(carried, k, accepted, your_note, decided_on), by = "k") %>%
   mutate(accepted   = blank(accepted),
          your_note  = blank(your_note),
          decided_on = blank(decided_on))
@@ -323,6 +421,23 @@ manual <- ans %>%
             geocoder_notes = "coordinate entered by hand in the sheet",
             existing_project_note = "",
             k, accepted, your_note, decided_on)
+
+# Typed into the sheet but not kept by this run. Named at the end rather than lost
+# when the sheet is rewritten. Two ways it happens: a row with no coordinate has no
+# coordinate to accept or reject, so `no` on it goes nowhere -- `absent` is the answer
+# that signs the label off (3b); and a coordinate no source proposed is kept only
+# while column A says yes. Blanking A is also how such a coordinate is withdrawn, so a
+# withdrawn `manual` row is named here once, as it goes. Generated rows whose source
+# has stopped offering them are not.
+unkept <- bind_rows(
+  sheet_in %>%
+    filter(is.na(latitude), is.na(longitude), accepted != "absent",
+           nzchar(accepted) | nzchar(your_note)) %>%
+    mutate(why = "no coordinate on the row; to leave the label without one, put absent in A"),
+  ans %>%
+    filter(!k %in% cand$k, accepted != "yes",
+           case %in% c("", "needs a coordinate", "manual")) %>%
+    mutate(why = "a coordinate no source proposed, without yes in column A"))
 
 # a hand-typed coordinate still gets the affiliation strings of its label
 if (nrow(manual))
@@ -365,8 +480,6 @@ if (nrow(clash)) {
 
 # Same label, same point, spelt two ways: no contradiction, but only one decision
 # should be written. Keep the spelling the deliverables actually use.
-real_labels <- unique(read_csv(F_LOOKUP, show_col_types = FALSE,
-                               progress = FALSE)$affiliation_simple)
 drop_k <- yes %>%
   group_by(k_lab) %>%
   filter(n() > 1) %>%
@@ -383,13 +496,14 @@ cand <- cand %>%
   group_by(affiliation_simple) %>%
   mutate(status = case_when(
     any(accepted == "yes")                    ~ "settled",
+    any(accepted == "absent")                 ~ "left absent - signed off",
     all(accepted == "no") & n() > 0           ~ "rejected - needs a new coordinate",
     any(accepted == "no")                     ~ "open - some candidates rejected",
     TRUE                                      ~ "open")) %>%
   ungroup() %>%
-  mutate(decided_on = ifelse(accepted == "yes" & !nzchar(decided_on),
+  mutate(decided_on = ifelse(accepted %in% c("yes", "absent") & !nzchar(decided_on),
                              as.character(Sys.Date()), decided_on),
-         decided_on = ifelse(accepted == "yes", decided_on, ""))
+         decided_on = ifelse(accepted %in% c("yes", "absent"), decided_on, ""))
 
 # ---- 4. write the coordinate rows of the decisions file ----------------------
 
@@ -443,11 +557,22 @@ sheet_labels <- join_key(cand$affiliation_simple)
 # stops claiming the decision, so the "hand-written" clause below would otherwise
 # protect it forever. Drop those and say so. Decisions for labels that DO exist
 # but never reach the sheet (an `ok` or `absent` one) are still preserved.
+#
+# A label a `label_rename` in this same file is about to take away counts as gone,
+# even though the deliverables still list it: they are a snapshot from before the
+# rename was written. Without this the decision survives the run that merges its
+# label, `label_rename` removes the label in the rebuild that follows, and the
+# build ends `42 checks, 2 failed` -- once for the `no_match` and once for the
+# coordinate that did not land. It cleared on the next run, which is exactly the
+# kind of "run it twice" that hides a real fault. Found merging `DRASS France`
+# into a new label on 2026-09-16.
+renamed_away <- join_key(existing$target[existing$decision_type == "label_rename"])
+tgt_key <- join_key(existing$target)
 dead <- existing$decision_type == "coordinate" &
-        !(join_key(existing$target) %in% sheet_labels) &
-        !(join_key(existing$target) %in% join_key(real_labels))
+        ((!(tgt_key %in% sheet_labels) & !(tgt_key %in% join_key(real_labels))) |
+         tgt_key %in% renamed_away)
 if (any(dead)) {
-  cat(sprintf("dropped %d coordinate decision(s) for label(s) no longer in the deliverables:\n",
+  cat(sprintf("dropped %d coordinate decision(s) for label(s) gone from the deliverables or renamed away:\n",
               sum(dead)))
   cat(sprintf("  %s\n", existing$target[dead]), sep = "")
   existing <- existing[!dead, , drop = FALSE]
@@ -458,7 +583,33 @@ kept <- existing %>%
            !(join_key(target) %in% sheet_labels))
 n_foreign <- sum(kept$decision_type == "coordinate", na.rm = TRUE)
 
-out <- bind_rows(kept, new_coords) %>%
+# The sign-offs from 3b, appended: one per label, and only for a label that does not
+# already carry one. Every sign-off already in the file passes through in `kept`,
+# untouched, hand-written or not.
+already_signed <- join_key(existing$target[existing$decision_type %in%
+                                             c("accept_as_is", "note_only")])
+both <- intersect(join_key(signoff$affiliation_simple), join_key(new_coords$target))
+if (length(both))
+  stop("a label cannot both take a coordinate and stay without one. Both were\n",
+       "answered for:\n",
+       paste(sprintf("  %s", signoff$affiliation_simple[
+         join_key(signoff$affiliation_simple) %in% both]), collapse = "\n"),
+       "\nNothing was written.", call. = FALSE)
+
+# as.character() on both ifelse()s: over no rows they come back logical, and
+# bind_rows() refuses to combine that with the character columns of the file.
+new_signoff <- signoff %>%
+  filter(!join_key(affiliation_simple) %in% already_signed) %>%
+  transmute(decision_type = "accept_as_is",
+            target        = as.character(affiliation_simple),
+            new_value     = "", latitude = "", longitude = "",
+            note          = as.character(ifelse(nzchar(your_note),
+                                   paste0("left without a coordinate: ", your_note),
+                                   "left without a coordinate")),
+            decided_on    = as.character(ifelse(nzchar(decided_on), decided_on,
+                                   as.character(Sys.Date()))))
+
+out <- bind_rows(kept, new_coords, new_signoff) %>%
   mutate(across(everything(), blank))
 write_csv(out, F_DECISIONS, na = "")
 
@@ -467,7 +618,8 @@ write_csv(out, F_DECISIONS, na = "")
 sheet <- cand %>%
   mutate(across(where(is.character), blank)) %>%
   arrange(match(status, c("open", "open - some candidates rejected",
-                          "rejected - needs a new coordinate", "settled")),
+                          "rejected - needs a new coordinate",
+                          "left absent - signed off", "settled")),
           case, affiliation_simple, desc(accepted == "yes")) %>%
   select(all_of(SHEET_COLS))
 
@@ -484,6 +636,18 @@ cat(sprintf("\ndecisions %s\n", F_DECISIONS))
 cat(sprintf("         %d coordinate rows written from the sheet\n", nrow(new_coords)))
 cat(sprintf("         %d other decision rows preserved (%d of them hand-written coordinates)\n",
             nrow(kept), n_foreign))
+if (nrow(new_signoff))
+  cat(sprintf("         %d accept_as_is row(s) appended: label(s) left without a coordinate\n",
+              nrow(new_signoff)))
 if (nrow(new_coords) == 0)
   cat("\nNothing accepted yet. Open the sheet, put yes against the coordinate you\n",
       "want for each label, save, and run this again.\n", sep = "")
+if (nrow(unkept)) {
+  cat(sprintf("\n!! %d row(s) typed into the sheet were not kept; the sheet has been rewritten without them:\n",
+              nrow(unkept)))
+  cat(sprintf("  %s\n    %s. A '%s'  H %s  I %s  M '%s'\n",
+              unkept$affiliation_simple, unkept$why, unkept$accepted,
+              ifelse(is.na(unkept$latitude), "-", sprintf("%.7f", unkept$latitude)),
+              ifelse(is.na(unkept$longitude), "-", sprintf("%.7f", unkept$longitude)),
+              unkept$your_note), sep = "")
+}

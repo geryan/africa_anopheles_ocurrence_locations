@@ -27,9 +27,44 @@ N_ADDED = len(ADD)
 # tidy drops the ABSENT placeholder of any paper the additions file supplies, so
 # the expected row count is 1273 + added - replaced. Recomputed here from the
 # spreadsheet rather than taken on trust.
-_orig_aff = orig['affiliation'].fillna('').str.strip().str.upper()
-_mask = (orig['source_citation'].isin(set(ADD.source_citation))
-         & _orig_aff.isin(['', 'ABSENT']))
+#
+# That needs the paper each spreadsheet row ends up under, and the spreadsheet's
+# own citation text will not do: it is damaged (mojibake, the us/uk replace,
+# drag-down page numbers) while the additions file carries the clean
+# twatasha_todo.csv form. Comparing raw text is how 23 of 59 placeholders
+# survived unnoticed until 2026-09-11 -- tidy made that mistake and this file
+# repeated it, so the two agreed. The match is derived here independently of
+# tidy's resolver: none of those damage types touches a citation's ASCII
+# letters apart from us/uk, so the key keeps only those, us/uk neutralised, and
+# falls back to ignoring digits when that is unambiguous. Continuation rows are
+# forward-filled first, as tidy does.
+def _skel(s, digits=True):
+    if not isinstance(s, str): return None
+    s = re.sub(r'<[^>]+>', '', s)
+    s = re.sub(r'United States|usa|us', '\x01', s, flags=re.I)
+    s = re.sub(r'United Kingdom|uk', '\x02', s, flags=re.I)
+    s = re.sub(r'[^A-Za-z0-9\x01\x02]', '', s).lower()
+    return s if digits else re.sub(r'\d', '', s)
+
+def _lookup(key_fn):
+    g = todo.groupby(todo.source_citation.map(key_fn)).source_citation
+    return g.apply(lambda s: sorted(set(s))).to_dict()
+_T = set(todo.source_citation)
+_by_skel, _by_nodigit = _lookup(_skel), _lookup(lambda s: _skel(s, False))
+
+def _paper(s):
+    if not isinstance(s, str): return None
+    if s in _T: return s
+    for cands in (_by_skel.get(_skel(s)), _by_nodigit.get(_skel(s, False))):
+        if cands and len(cands) == 1: return cands[0]
+    return None
+
+def _is_placeholder(s):
+    return s.fillna('').str.strip().str.upper().isin(['', 'ABSENT'])
+
+SUPPLIED = set(ADD.source_citation.map(_paper)) - {None}
+_mask = orig['source_citation'].ffill().map(_paper).isin(SUPPLIED) & \
+        _is_placeholder(orig['affiliation'])
 N_REPLACED = int(_mask.sum())
 def added_nonnull(col):
     if col not in ADD.columns: return 0
@@ -46,6 +81,18 @@ check(f'deliverable 1 has {1273 + N_ADDED - N_REPLACED} rows (1273 xlsx rows'
       + (f' - {N_REPLACED} ABSENT placeholder(s) replaced' if N_REPLACED else '')
       + ')',
       len(D1) == 1273 + N_ADDED - N_REPLACED, f'{len(D1)}')
+# The invariant behind that count, asserted directly so it does not rest on the
+# matcher above: a paper the additions file supplies keeps no ABSENT or empty row
+# except the ones typed into that file itself.
+if N_ADDED:
+    _ph_d1  = D1[D1.source_citation.isin(SUPPLIED) & _is_placeholder(D1.affiliation)] \
+                .groupby('source_citation').size()
+    _ph_add = ADD[_is_placeholder(ADD.affiliation)].source_citation.map(_paper).value_counts()
+    _left = _ph_d1.sub(_ph_add, fill_value=0)
+    _left = _left[_left > 0]
+    check('no supplied paper keeps a replaced ABSENT placeholder', len(_left) == 0,
+          f'{int(_left.sum())} left over {len(_left)} paper(s)' if len(_left)
+          else f'{int(_ph_d1.sum())} ABSENT row(s) remain, all typed into added_affiliations.csv')
 check('column set unchanged',
       list(D1.columns) == ['source_citation', 'n', 'affiliation_original',
                            'affiliation', 'affiliation_simple'])

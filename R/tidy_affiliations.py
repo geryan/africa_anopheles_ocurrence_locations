@@ -216,21 +216,8 @@ if os.path.exists(F_ADD):
         })[v3.columns]
         v3 = pd.concat([v3, extra], ignore_index=True)
         N_ADDED = len(add)
-
-        # A paper whose affiliation the source recorded as ABSENT keeps a
-        # placeholder row saying so. Once a real affiliation is supplied for that
-        # paper the placeholder is not just redundant, it is wrong -- it would
-        # show the paper as both known and unknown. So for any citation this file
-        # supplies, its ABSENT (or empty) rows are dropped.
-        supplied = set(add.source_citation)
-        aff_txt  = v3.affiliation.fillna('').str.strip().str.upper()
-        dead = (v3.source_citation.isin(supplied) & (aff_txt.isin(['', 'ABSENT']))
-                & (v3.row_xlsx < 90001))
-        N_REPLACED = int(dead.sum())
-        for i in np.where(dead)[0]:
-            log(v3.row_xlsx.iloc[i], 'affiliation', v3.affiliation.iloc[i], None,
-                'ABSENT placeholder replaced by added_affiliations.csv')
-        v3 = v3[~dead].reset_index(drop=True)
+        # The ABSENT placeholders these rows replace are dropped in step 3b, once
+        # every citation has been re-keyed -- not here.
 
 ORIG = v3.copy()
 
@@ -288,6 +275,34 @@ for i in range(len(v3)):
     if isinstance(n_new.iloc[i], str):
         log(v3.row_xlsx.iloc[i], 'n', v3.n.iloc[i], n_new.iloc[i], 're-keyed to twatasha_todo.csv')
 v3['n'] = n_new.fillna(v3.n)
+
+# ================= step 3b: drop the placeholders the additions replace =======
+# A paper whose affiliation the source recorded as ABSENT keeps a placeholder
+# row saying so. Once data/added_affiliations.csv supplies that paper the
+# placeholder is not just redundant, it is wrong -- it would show the paper as
+# both known and unknown. So for any citation that file supplies, its ABSENT (or
+# empty) spreadsheet rows are dropped.
+#
+# This runs after the forward-fill and the re-key because only then does every
+# row carry the citation the deliverable will: the clean twatasha_todo.csv form
+# the additions carry. Until 2026-09-11 it ran at load on the spreadsheet's raw
+# text, and so missed every placeholder whose citation the spreadsheet had
+# damaged (mojibake, `SoUnited States`, drag-down page numbers): 23 of 59
+# survived beside the affiliations that replaced them. Dropping before the
+# forward-fill would also hand any continuation row under a dropped placeholder
+# to the paper above it.
+if N_ADDED:
+    supplied = set(v3.loc[v3.row_xlsx >= 90001, 'source_citation'])
+    aff_txt  = v3.affiliation.fillna('').str.strip().str.upper()
+    dead = (v3.source_citation.isin(supplied) & aff_txt.isin(['', 'ABSENT'])
+            & (v3.row_xlsx < 90001))
+    N_REPLACED = int(dead.sum())
+    for i in np.where(dead)[0]:
+        before = v3.affiliation.iloc[i]
+        log(v3.row_xlsx.iloc[i], 'affiliation',
+            before if isinstance(before, str) else '(empty)', None,
+            'ABSENT placeholder replaced by added_affiliations.csv')
+    v3 = v3[~dead].reset_index(drop=True)
 
 # ================================= step 4: reverse mid-word us/uk =============
 # Decisions of type `token_replacement` override the inferred case for a whole
