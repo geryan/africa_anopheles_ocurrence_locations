@@ -34,12 +34,15 @@
 # of five spellings is thought about once rather than prosecuted five times in
 # five places.  Clusters with unanswered rows come first.
 #
-# Column Q `warning` is the one to read before you tick.  A merge keeps the
-# survivor's coordinate and throws the other one away without asking, so it
-# says how far apart the two points are, whether the one being discarded is a
-# coordinate you chose yourself rather than an unexamined source value, and
-# whether either point is one of the suspects in review_coord_sanity.csv.  The
-# two google_maps columns are there so you can look at both before deciding.
+# Column Q `warning` is the one to read before you tick.  A merge keeps one
+# coordinate and throws the other away without asking - the survivor's, unless
+# only the label merged away carries a coordinate you chose, which then follows
+# the merge - so it says how far apart the two points are, whether the one being
+# discarded is a coordinate you chose yourself rather than an unexamined source
+# value, and whether either point is one of the suspects in
+# review_coord_sanity.csv.  The two google_maps columns (W, X) are there so you
+# can look at both before deciding.  Column Y `lake` says which side carries Gia's
+# lake-region rows: a, b or both.
 # A merge whose discarded point is the sanity-flagged one is the comfortable
 # case; keeping a flagged point is the one to think about.
 #
@@ -77,6 +80,7 @@ F_COORD     <- file.path(root, "data", "coord_review.xlsx")
 F_DECISIONS <- file.path(root, "data", "affiliation_decisions.csv")
 F_PAIRS     <- file.path(root, "output", "review_label_duplicates.csv")
 F_SANITY    <- file.path(root, "output", "review_coord_sanity.csv")
+F_SOURCES   <- file.path(root, "output", "label_sources.csv")
 
 FLAG_MERGE_KM <- 5    # coordinates further apart than this are worth a look
 
@@ -89,15 +93,16 @@ SHEET_COLS <- c("accepted", "status", "keep", "label_a", "label_b",
                 "coordinate_a", "coordinate_b", "distance_km", "warning",
                 "your_note", "decided_on", "detail",
                 "affiliations_a", "affiliations_b",
-                "google_maps_a", "google_maps_b")
+                "google_maps_a", "google_maps_b", "lake")
 
 blank <- function(x) ifelse(is.na(x), "", as.character(x))
 today <- format(Sys.Date(), "%Y-%m-%d")
 
-newest <- function(pattern) {
-  f <- list.files(file.path(root, "output", "final"), pattern = pattern, full.names = TRUE)
-  if (!length(f)) stop("no file matching ", pattern, " in output/", call. = FALSE)
-  sort(f, decreasing = TRUE)[1]
+deliverable <- function(name) {
+  f <- file.path(root, "output", "final", name)
+  if (!file.exists(f)) stop(f, " not found; run python3 R/tidy_affiliations.py first",
+                            call. = FALSE)
+  f
 }
 
 # A pair is identified by its two labels, whichever order they were written in.
@@ -121,11 +126,11 @@ join_key <- function(s) {
 
 # --- the labels as they stand --------------------------------------------------
 
-d3 <- read_csv(newest("^affiliation_simple_coords_\\d{8}\\.csv$"),
+d3 <- read_csv(deliverable("affiliation_simple_coords.csv"),
                col_types = cols(.default = col_character()), progress = FALSE) %>%
   mutate(n_rows = suppressWarnings(as.integer(n_rows)))
 
-lookup <- read_csv(newest("^affiliation_lookup_\\d{8}\\.csv$"),
+lookup <- read_csv(deliverable("affiliation_lookup.csv"),
                    show_col_types = FALSE, progress = FALSE)
 
 aff_of <- lookup %>%
@@ -148,6 +153,14 @@ live <- info$label
 flagged <- if (file.exists(F_SANITY)) {
   read_csv(F_SANITY, show_col_types = FALSE, progress = FALSE)$affiliation_simple
 } else character(0)
+
+# Which labels carry Gia's lake-region rows, for the `lake` column. Written by
+# tidy_affiliations.py; absent file just means an empty column.
+lake_rows <- if (file.exists(F_SOURCES)) {
+  s_ <- read_csv(F_SOURCES, col_types = cols(.default = col_character()), progress = FALSE)
+  setNames(suppressWarnings(as.integer(s_$n_rows_lake)), s_$affiliation_simple)
+} else integer(0)
+has_lake <- function(l) { v <- unname(lake_rows[l]); !is.na(v) & v > 0 }
 
 maps_url <- function(coord) ifelse(nzchar(coord),
   paste0("https://www.google.com/maps/search/?api=1&query=",
@@ -469,7 +482,7 @@ anchor <- tapply(cl_labels, cl_root, function(ls) {
 group_of <- function(l) unname(anchor[cl_root[l]])
 group_size <- table(cl_root)
 
-sheet <- cand %>%
+sheet_full <- cand %>%
   mutate(
     group   = group_of(label_a),
     group_n = as.integer(group_size[cl_root[label_a]]),
@@ -487,18 +500,36 @@ sheet <- cand %>%
     affiliations_b = substr(side(label_b, "affs"), 1, 500),
     google_maps_a  = maps_url(coordinate_a),
     google_maps_b  = maps_url(coordinate_b),
+    lake           = case_when(has_lake(label_a) & has_lake(label_b) ~ "both",
+                               has_lake(label_a) ~ "a", has_lake(label_b) ~ "b",
+                               TRUE ~ ""),
     dropped        = ifelse(keep == label_a, label_b, label_a),
     dropped_status = ifelse(keep == label_a, coord_status_b, coord_status_a),
+    keep_status    = side(keep, "coord_status"),
+    # Which point a merge keeps, as section 7 patches coord_review.xlsx: a survivor
+    # with a coordinate you chose keeps it; otherwise a coordinate you chose for the
+    # label merged away is retargeted onto the survivor and FOLLOWS the merge, and
+    # it is the survivor's own point that goes.
+    follows        = dropped_status == "decided" & keep_status != "decided",
+    discarded_maps = ifelse(follows == (keep == label_a), google_maps_a, google_maps_b),
     km             = suppressWarnings(as.numeric(distance_km)),
     warning        = vapply(seq_len(n()), function(i) {
       w <- character(0)
       if (!is.na(km[i]) && km[i] > FLAG_MERGE_KM)
         w <- c(w, sprintf("%.0f km apart", km[i]))
-      if (nzchar(dropped[i]) && dropped_status[i] == "decided")
-        w <- c(w, "discards a coordinate you chose")
-      if (dropped[i] %in% flagged)
+      if (nzchar(dropped[i]) && dropped_status[i] == "decided") {
+        if (keep_status[i] == "decided")
+          w <- c(w, "discards a coordinate you chose")
+        else if (keep_status[i] == "ok")
+          w <- c(w, "the coordinate you chose follows the merge; the survivor's own point is discarded")
+        else if (keep_status[i] == "conflict")
+          w <- c(w, "the coordinate you chose follows the merge and settles the survivor's conflict")
+      }
+      lost <- if (follows[i]) keep[i] else dropped[i]
+      held <- if (follows[i]) dropped[i] else keep[i]
+      if (lost %in% flagged)
         w <- c(w, "the discarded point is sanity-flagged")
-      if (keep[i] %in% flagged)
+      if (held %in% flagged)
         w <- c(w, "KEEPS a sanity-flagged point")
       paste(w, collapse = "; ")
     }, character(1))) %>%
@@ -508,8 +539,8 @@ sheet <- cand %>%
   ungroup() %>%
   arrange(desc(g_open), desc(g_strength), desc(group_n), group,
           match(status, c("open", "accepted", "rejected", "applied")),
-          desc(coalesce(strength, 0L)), label_a) %>%
-  select(all_of(SHEET_COLS))
+          desc(coalesce(strength, 0L)), label_a)
+sheet <- select(sheet_full, all_of(SHEET_COLS))
 
 writexl::write_xlsx(list(labels = sheet), F_SHEET)
 
@@ -522,17 +553,16 @@ print(as.data.frame(count(sheet, status, name = "n")), row.names = FALSE)
 
 # Only merges not yet built: once a merge is applied the discarded coordinate
 # is gone and the warning is history, kept in the sheet's `warning` column.
-warned <- sheet %>% filter(status == "accepted", nzchar(warning))
+warned <- sheet_full %>% filter(status == "accepted", nzchar(warning))
 if (nrow(warned)) {
   cat(sprintf("\n%d accepted merge(s) discard a coordinate worth checking:\n",
               nrow(warned)))
   w <- warned %>% arrange(desc(suppressWarnings(as.numeric(distance_km))))
   for (i in seq_len(nrow(w)))
-    cat(sprintf("  %s\n    keep %s, drop %s\n    %s\n",
+    cat(sprintf("  %s\n    keep %s, drop %s\n    point discarded: %s\n",
                 w$warning[i], w$keep[i],
                 ifelse(w$keep[i] == w$label_a[i], w$label_b[i], w$label_a[i]),
-                ifelse(w$keep[i] == w$label_a[i], w$google_maps_b[i],
-                       w$google_maps_a[i])))
+                w$discarded_maps[i]))
 }
 
 cat("\ndecisions ", F_DECISIONS, "\n", sep = "")

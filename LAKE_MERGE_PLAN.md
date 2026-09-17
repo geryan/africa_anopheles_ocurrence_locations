@@ -1,9 +1,26 @@
 # Merge Gia's lake-region data into output/final, and drop the `_20260817` stamp
 
-**Status, 2026-09-17: planned, NOT approved, NOT started.** Written in the seventh session:
-files were read and nothing was run or changed. The four design questions are answered
-(below), but the owner has not yet approved the plan. Do not implement anything until he
-says go. Once it is done, this becomes step 8 of `NEXT_STEPS.md` and this file can go.
+**Status, 2026-09-17 (eighth session): approved and built. Open only for the owner's
+answers in the two sheets.** `NEXT_STEPS.md` step 8 is the record of what was built, the
+numbers and the loop; read that, not this. This file is kept as the plan as approved.
+Where the build departs from the text below:
+- **B0 was dropped. `vector_extraction_data.csv` is never read**, no exception, and
+  `output/lake_todo.csv` does not exist. Gia's file carries citation and n itself:
+  `R/sources_to_check.R:35` is a `left_join` on (source_citation, n), so a paper of hers not
+  on `twatasha_todo.csv` had already matched the extraction data on both. The guard "one
+  lake citation altered by a byte" therefore cannot exist: nothing independent holds those
+  bytes. Verify instead fails when the pipeline alters, loses or duplicates her rows.
+- **B5 also offers every one of her `ok` points** as a `case = lake` row to check (yes =
+  checked, the label becomes `decided`), at the owner's request, because nothing else would
+  put her points in front of him.
+- **`affiliation_relabel` does not move her rows.** One of her rows carries a string a
+  2026-09-04 relabel sends to `IHI Ifakara`; it stays under `IHI Ifakara Tanzania` until
+  merged, and every rebuild names it.
+- **`coord_review.R` keeps a decision's recorded note** when its ticked row turns `manual`,
+  or a checked point of hers loses `source: lake_region_source_counts.csv`.
+- **Verify runs 49 checks, not 48**: a 43rd check was added on the way, for a bug in
+  `absent_review.R` that had put 66 duplicate rows into deliverable 1 (1374 instead of
+  1308). With that fixed, every expected figure below held.
 
 ## Context
 

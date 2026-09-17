@@ -21,10 +21,10 @@
 #          data/unique_affiliations_Lat_Long.csv      (Mac Roman on disk)
 #          output/twatasha_todo.csv                   (clean UTF-8 reference)
 #
-# Outputs  output/affiliations_complete_<stamp>.csv
-#          output/affiliation_lookup_<stamp>.csv
-#          output/affiliation_simple_coords_<stamp>.csv
-#          output/diff_report_<stamp>.csv
+# Outputs  output/final/affiliations_complete.csv
+#          output/final/affiliation_lookup.csv
+#          output/final/affiliation_simple_coords.csv
+#          output/diff_report_20260817.csv
 #          output/decisions_report.csv
 #          output/review_*.csv
 # ---------------------------------------------------------------------------
@@ -37,7 +37,8 @@ library(stringi)
 library(purrr)
 library(tibble)
 
-STAMP     <- "20260817"   # set to format(Sys.Date(), "%Y%m%d") for a fresh stamp
+STAMP     <- "20260817"   # names the diff report and the frozen baseline files in PARITY_TO;
+                          # the three deliverables carry no stamp
 OUT       <- "output"
 FINAL     <- file.path(OUT, "final")   # the three deliverables; see output/final/README.txt
 dir.create(FINAL, showWarnings = FALSE, recursive = TRUE)
@@ -490,13 +491,13 @@ if (length(RENAME)) {
 
 # == 6-8. deliverables =======================================================
 D1 <- select(v3, source_citation, n, affiliation_original, affiliation, affiliation_simple)
-write_csv(D1, file.path(FINAL, sprintf("affiliations_complete_%s.csv", STAMP)), na = "")
+write_csv(D1, file.path(FINAL, "affiliations_complete.csv"), na = "")
 
 D2 <- v3 %>% filter(!is.na(affiliation), !is.na(affiliation_simple)) %>%
   count(affiliation_simple, affiliation, name = "n_rows") %>%
   arrange(tolower(affiliation_simple), tolower(affiliation)) %>%
   select(affiliation_simple, affiliation, n_rows)
-write_csv(D2, file.path(FINAL, sprintf("affiliation_lookup_%s.csv", STAMP)), na = "")
+write_csv(D2, file.path(FINAL, "affiliation_lookup.csv"), na = "")
 
 as_num <- function(x) {
   x <- str_trim(str_replace(str_trim(x), ",$", ""))
@@ -610,7 +611,7 @@ for (lbl in names(COORD_DECISION)) {
 }
 
 D3$n_rows <- as.integer(table(v3$affiliation_simple)[D3$affiliation_simple])
-write_csv(D3, file.path(FINAL, sprintf("affiliation_simple_coords_%s.csv", STAMP)), na = "")
+write_csv(D3, file.path(FINAL, "affiliation_simple_coords.csv"), na = "")
 
 # -- accept_as_is / note_only, and the decisions report ----------------------
 REVIEWED <- character(0)

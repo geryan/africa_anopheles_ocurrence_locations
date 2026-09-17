@@ -47,8 +47,11 @@ F_DECISIONS <- file.path(root, "data", "affiliation_decisions.csv")
 F_PROPOSED  <- file.path(root, "output", "proposed_coords_missing88_20260818.csv")
 F_CONFLICTS <- file.path(root, "output", "review_coord_conflicts.csv")
 F_SANITY    <- file.path(root, "output", "review_coord_sanity.csv")
-F_COORDS    <- file.path(root, "output", "final", "affiliation_simple_coords_20260817.csv")
-F_LOOKUP    <- file.path(root, "output", "final", "affiliation_lookup_20260817.csv")
+F_COORDS    <- file.path(root, "output", "final", "affiliation_simple_coords.csv")
+F_LOOKUP    <- file.path(root, "output", "final", "affiliation_lookup.csv")
+F_LAKE_ROWS   <- file.path(root, "data", "gia_final_data", "lake_region_source_affiliations_africa.csv")
+F_LAKE_COUNTS <- file.path(root, "data", "gia_final_data", "lake_region_source_counts.csv")
+LAKE_SRC      <- "lake_region_source_counts"   # coord_source tidy_affiliations.py gives her points
 
 DEC_COLS <- c("decision_type", "target", "new_value", "latitude", "longitude",
               "note", "decided_on")
@@ -234,9 +237,89 @@ build_candidates <- function() {
   # no affiliation and so names nothing to geocode, and a label signed off with
   # accept_as_is or note_only, which is how one is left without a coordinate on
   # purpose.
-  offered <- unique(c(missing_rows$affiliation_simple, conflict_rows$affiliation_simple,
-                      sanity_rows$affiliation_simple))
   d3 <- read_csv(F_COORDS, show_col_types = FALSE, progress = FALSE)
+
+  # Gia's lake-region coordinates, while her rows are part of the build. Two kinds of
+  # row, both case = lake:
+  #   - every label whose coordinate came from her counts file and is still `ok`.
+  #     Nothing else would ever put her points in front of you, and the sanity sweep
+  #     tests only the country: `MasenoU Maseno Kenya` sits in Nairobi and passes.
+  #     yes means "checked, this is right" and makes the label `decided`.
+  #   - a point of hers that no label in the deliverables uses (her counts file says
+  #     `ILRI Nairobi Kenya` where her rows say `ILRAD Nairobi Kenya`), offered to every
+  #     label without a coordinate whose name ends in the same two words. A point
+  #     offered to no label is named.
+  lake_rows <- NULL
+  if (file.exists(F_LAKE_ROWS) && file.exists(F_LAKE_COUNTS)) {
+    maps <- function(la, lo)
+      sprintf("https://www.google.com/maps/search/?api=1&query=%.7f,%.7f", la, lo)
+    hers <- d3 %>%
+      filter(coord_status == "ok", coord_source == LAKE_SRC,
+             !affiliation_simple %in% sanity_rows$affiliation_simple)
+    to_check <- if (nrow(hers)) tibble(
+      affiliation_simple = hers$affiliation_simple, case = "lake",
+      latitude = as.numeric(hers$latitude), longitude = as.numeric(hers$longitude),
+      precision = "", confidence = "",
+      resolved_name = "Gia's coordinate as it stands - tick this if it is right",
+      n_rows = as.integer(hers$n_rows),
+      source_name = "lake_region_source_counts.csv", source_url = "",
+      google_maps = maps(as.numeric(hers$latitude), as.numeric(hers$longitude)),
+      nearest_existing_label = "", nearest_existing_km = NA_real_, same_coord_group = "",
+      geocoder_notes = paste("from Gia's counts file, never checked; the sanity sweep tests",
+                             "only the country, so check the point is in the place the label names"),
+      existing_project_note = "") else NULL
+
+    renames <- if (file.exists(F_DECISIONS)) {
+      d <- read_csv(F_DECISIONS, col_types = cols(.default = col_character()), progress = FALSE)
+      d[d$decision_type == "label_rename", c("target", "new_value")]
+    } else tibble(target = character(), new_value = character())
+    lc <- read_csv(F_LAKE_COUNTS, col_types = cols(.default = col_character()),
+                   progress = FALSE) %>%
+      mutate(label = trimws(gsub("\\s+", " ", affiliation_simple)),
+             now = ifelse(label %in% renames$target,
+                          renames$new_value[match(label, renames$target)], label),
+             latitude = as.numeric(latitude), longitude = as.numeric(longitude))
+    unused <- filter(lc, !join_key(now) %in% join_key(d3$affiliation_simple))
+    takers <- d3 %>%
+      filter(coord_status %in% c("missing", "absent"), affiliation_simple != "ABSENT",
+             !join_key(affiliation_simple) %in% join_key(signed_off_labels()))
+    last2 <- function(x) vapply(strsplit(tolower(trimws(x)), "\\s+"), function(w)
+      if (length(w) >= 3) paste(tail(w, 2), collapse = " ") else NA_character_, character(1))
+    offers <- list(); nobody <- character(0)
+    for (i in seq_len(nrow(unused))) {
+      t2 <- last2(unused$label[i])
+      hit <- takers[!is.na(t2) & last2(takers$affiliation_simple) %in% t2, ]
+      if (!nrow(hit)) {
+        nobody <- c(nobody, sprintf("%s (%s, %s)", unused$label[i],
+                                    unused$latitude[i], unused$longitude[i]))
+        next
+      }
+      offers[[length(offers) + 1]] <- tibble(
+        affiliation_simple = hit$affiliation_simple, case = "lake",
+        latitude = unused$latitude[i], longitude = unused$longitude[i],
+        precision = "", confidence = "",
+        resolved_name = sprintf("Gia's point for '%s', a label none of her rows uses",
+                                unused$label[i]),
+        n_rows = as.integer(hit$n_rows),
+        source_name = "lake_region_source_counts.csv", source_url = "",
+        google_maps = maps(unused$latitude[i], unused$longitude[i]),
+        nearest_existing_label = "", nearest_existing_km = NA_real_, same_coord_group = "",
+        geocoder_notes = sprintf(paste("offered because both labels end in '%s'; tick it only if",
+                                       "'%s' is this institution"), t2, unused$label[i]),
+        existing_project_note = "")
+    }
+    lake_rows <- bind_rows(to_check, bind_rows(offers))
+    cat(sprintf("Gia's coordinates: %d label(s) to check, %d point(s) offered to a label without one\n",
+                NROW(to_check), length(offers)))
+    if (length(nobody)) {
+      cat(sprintf("a point in her counts file that no label uses and none could take: %d\n",
+                  length(nobody)))
+      cat(sprintf("  %s\n", nobody), sep = "")
+    }
+  }
+
+  offered <- unique(c(missing_rows$affiliation_simple, conflict_rows$affiliation_simple,
+                      sanity_rows$affiliation_simple, lake_rows$affiliation_simple))
   orphan <- d3 %>%
     filter(coord_status %in% c("missing", "absent"), affiliation_simple != "ABSENT",
            !affiliation_simple %in% offered)
@@ -261,7 +344,7 @@ build_candidates <- function() {
       "this label has no coordinate and nothing proposed one"),
     existing_project_note = "") else NULL
 
-  out <- bind_rows(missing_rows, conflict_rows, sanity_rows, orphan_rows) %>%
+  out <- bind_rows(missing_rows, conflict_rows, sanity_rows, lake_rows, orphan_rows) %>%
     mutate(k_lab = join_key(affiliation_simple)) %>%
     left_join(aff_by_label(), by = c(k_lab = "k"))
 
@@ -543,6 +626,27 @@ if (length(miss))
   stop(F_DECISIONS, " is missing columns: ", paste(miss, collapse = ", "),
        call. = FALSE)
 existing <- existing[, DEC_COLS]
+
+# A ticked row whose source stops offering it -- a sanity suspect once settled, one
+# of Gia's points once checked -- comes back as case = manual, which has no source
+# of its own, so its decision was rewritten without the provenance recorded when it
+# was ticked ("source: lake_region_source_counts.csv"). Keep the note already on
+# record for the same label and coordinate, unless the note typed in M has changed.
+prev_note <- existing %>%
+  filter(decision_type == "coordinate") %>%
+  transmute(k_prev = paste(join_key(target), latitude, longitude, sep = "|"),
+            prev = blank(note)) %>%
+  distinct(k_prev, .keep_all = TRUE)
+carry <- accepted$case == "manual"
+if (any(carry)) {
+  k_new <- paste(join_key(new_coords$target), new_coords$latitude, new_coords$longitude,
+                 sep = "|")
+  old <- prev_note$prev[match(k_new, prev_note$k_prev)]
+  typed <- blank(accepted$your_note)
+  keep_old <- carry & !is.na(old) & nzchar(old) & old != new_coords$note &
+              (!nzchar(typed) | mapply(grepl, typed, old, MoreArgs = list(fixed = TRUE)))
+  new_coords$note[keep_old] <- old[keep_old]
+}
 
 # Matched on join_key for the same reason as the duplicate check above: a decision
 # written against `ICAPB UK` belongs to the label the sheet calls `ICAPB United

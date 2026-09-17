@@ -44,6 +44,15 @@
 #                       evidence, because two unrelated institutes in one city
 #                       are near each other and are not duplicates
 #
+# Between one of Gia's lake-region labels and an existing label only (read from
+# output/label_sources.csv, written by tidy_affiliations.py; added 2026-09-17):
+#   same_acronym        the same leading acronym (`KEMRI Nairobi Kenya` /
+#                       `KEMRI Kenya`)
+#   shared_affiliation  also from a row of hers dropped as already on its paper
+#                       (output/review_lake_overlap.csv)
+#   near_point          allowed on its own
+# No pair of two existing labels, or two of hers, gains evidence from these.
+#
 # A pair whose only evidence is soft - phrase, acronym or spelling - is dropped
 # unless the two labels name the same country (or one names none).  Hard
 # evidence, a shared affiliation string or one coordinate, is kept whatever the
@@ -86,14 +95,13 @@ MAX_REL_EDIT        <- 0.25   # spelling distance as a fraction of label length
 MIN_CORE_CHARS      <- 4L     # below this, edit distance is meaningless
 MIN_HEADS_ALONE     <- 3L     # institutions needed to report a label on that alone
 
-# Newest dated deliverable, so this still runs after a rebuild re-stamps them.
-newest <- function(pattern) {
-  f <- list.files("output/final", pattern = pattern, full.names = TRUE)
-  if (!length(f)) stop("no file matching ", pattern, " in output/")
-  sort(f, decreasing = TRUE)[1]
+deliverable <- function(name) {
+  f <- file.path("output", "final", name)
+  if (!file.exists(f)) stop(f, " not found; run python3 R/tidy_affiliations.py first")
+  f
 }
-coords_file <- newest("^affiliation_simple_coords_\\d{8}\\.csv$")
-lookup_file <- newest("^affiliation_lookup_\\d{8}\\.csv$")
+coords_file <- deliverable("affiliation_simple_coords.csv")
+lookup_file <- deliverable("affiliation_lookup.csv")
 
 message("coords: ", coords_file, "\nlookup: ", lookup_file)
 
@@ -510,6 +518,71 @@ if (nrow(withc) > 1) {
       detail = sprintf("%.3f km apart", dk[sel]), stringsAsFactors = FALSE)
 }
 
+# 6. Gia's lake-region labels against the existing ones
+# Her 40 labels arrive beside the existing ones with no string or key in common,
+# so most of her matches have nothing the tests above can see. Three more kinds of
+# evidence, each fired ONLY for a pair with her rows on one side and other rows on
+# the other: no pair of two existing labels gains evidence here, and neither does
+# a pair of two of hers (`NIMR Tanga` / `NIMR Amani` is her own deliberate split).
+#   same_acronym        the same leading acronym (`KEMRI Nairobi Kenya` /
+#                       `KEMRI Kenya`); a pair naming two countries is dropped
+#                       below like any other soft evidence
+#   shared_affiliation  also from a row of hers dropped because its paper already
+#                       carried the affiliation (output/review_lake_overlap.csv),
+#                       so the match is not lost with the row
+#   near_point          kept on its own for these pairs, below
+# output/label_sources.csv is written by tidy_affiliations.py. Without it, or
+# without any row of hers, nothing here fires and the sweep is as it was.
+F_SOURCES <- "output/label_sources.csv"
+F_OVERLAP <- "output/review_lake_overlap.csv"
+lake_n <- base_n <- setNames(numeric(0), character(0))
+if (file.exists(F_SOURCES)) {
+  srcs   <- read_csv(F_SOURCES, col_types = cols(.default = col_character()))
+  lake_n <- setNames(as.numeric(srcs$n_rows_lake), srcs$affiliation_simple)
+  base_n <- setNames(as.numeric(srcs$n_rows) - lake_n, srcs$affiliation_simple)
+}
+has_lake <- function(l) unname(!is.na(lake_n[l]) & lake_n[l] > 0)
+has_base <- function(l) unname(!is.na(base_n[l]) & base_n[l] > 0)
+crosses  <- function(a, b) (has_lake(a) & has_base(b)) | (has_base(a) & has_lake(b))
+
+if (any(lake_n > 0)) {
+  lead_of <- function(x) {
+    tok <- regmatches(x, regexpr("[A-Za-z0-9]+", x))
+    if (!length(tok) || nchar(tok) < 2L || nchar(tok) > 8L) return(NA_character_)
+    if (!grepl("[A-Z]", tok) || grepl("^[A-Z][a-z]+$", tok)) return(NA_character_)
+    tolower(tok)
+  }
+  lt <- tibble(affiliation_simple = lab_tbl$affiliation_simple,
+               lead = vapply(lab_tbl$affiliation_simple, lead_of, character(1))) %>%
+    filter(!is.na(lead))
+  sa <- lt %>%
+    inner_join(lt, by = "lead", relationship = "many-to-many") %>%
+    filter(affiliation_simple.x < affiliation_simple.y,
+           crosses(affiliation_simple.x, affiliation_simple.y))
+  if (nrow(sa))
+    ev[["same_acronym"]] <- data.frame(
+      key = pair_key(sa$affiliation_simple.x, sa$affiliation_simple.y),
+      evidence = "same_acronym", detail = sa$lead, stringsAsFactors = FALSE)
+
+  if (file.exists(F_OVERLAP)) {
+    ov <- read_csv(F_OVERLAP, col_types = cols(.default = col_character())) %>%
+      filter(startsWith(outcome, "dropped"), !is.na(existing_label), !is.na(lake_label)) %>%
+      mutate(existing_label = strsplit(existing_label, " | ", fixed = TRUE)) %>%
+      unnest_longer(existing_label) %>%
+      # a label of hers left with no row cannot be merged, so it raises no pair
+      filter(lake_label %in% labels, existing_label %in% labels,
+             lake_label != existing_label)
+    if (nrow(ov))
+      ev[["shared_affiliation_lake"]] <- data.frame(
+        key = pair_key(ov$lake_label, ov$existing_label),
+        evidence = "shared_affiliation",
+        detail = paste0(substr(ov$affiliation, 1, 100),
+                        " [a row of Gia's, dropped as already on its paper]"),
+        stringsAsFactors = FALSE)
+  }
+  message(sprintf("%d labels carry Gia's rows", sum(lake_n > 0)))
+}
+
 all_ev <- bind_rows(ev)
 
 if (nrow(all_ev) == 0) {
@@ -532,8 +605,10 @@ if (nrow(all_ev) == 0) {
     evidence = grouped$evidence,
     detail = grouped$detail)
 
-  # near_point on its own is a city, not a duplicate: drop it.
-  dup <- dup %>% filter(evidence != "near_point")
+  # near_point on its own is a city, not a duplicate: drop it -- except between one
+  # of Gia's labels and an existing one, where a point within 2 km is the likeliest
+  # sign that she and the spreadsheet named one institute differently.
+  dup <- dup %>% filter(evidence != "near_point" | crosses(label_a, label_b))
 
   info <- lab_tbl %>% select(affiliation_simple, coord_status, lat, lon, n_rows,
                              country)

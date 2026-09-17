@@ -10,7 +10,7 @@
 # owner and are made through data/coord_review.xlsx (see CLAUDE.md rule 3/4).
 #
 # Method
-#   1. Keep the 296 rows of output/affiliation_simple_coords_*.csv that carry a
+#   1. Keep the rows of output/final/affiliation_simple_coords.csv that carry a
 #      coordinate (coord_status ok or decided).
 #   2. Expected country: parse trailing country token(s) out of
 #      affiliation_simple, and independently out of that label's affiliation
@@ -39,14 +39,13 @@ suppressPackageStartupMessages({
 
 THRESHOLD_KM <- 10   # tolerance for the low-resolution maps coastline
 
-# Newest dated deliverable, so this still runs after a rebuild re-stamps them.
-newest <- function(pattern) {
-  f <- list.files("output/final", pattern = pattern, full.names = TRUE)
-  if (!length(f)) stop("no file matching ", pattern, " in output/")
-  sort(f, decreasing = TRUE)[1]
+deliverable <- function(name) {
+  f <- file.path("output", "final", name)
+  if (!file.exists(f)) stop(f, " not found; run python3 R/tidy_affiliations.py first")
+  f
 }
-coords_file <- newest("^affiliation_simple_coords_\\d{8}\\.csv$")
-lookup_file <- newest("^affiliation_lookup_\\d{8}\\.csv$")
+coords_file <- deliverable("affiliation_simple_coords.csv")
+lookup_file <- deliverable("affiliation_lookup.csv")
 out_file    <- "output/review_coord_sanity.csv"
 
 message("coords: ", coords_file, "\nlookup: ", lookup_file)

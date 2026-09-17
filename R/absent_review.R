@@ -52,7 +52,7 @@ if (!all(dir.exists(file.path(root, c("output", "data")))))
 
 F_SHEET <- file.path(root, "data", "absent_review.xlsx")
 F_ADDED <- file.path(root, "data", "added_affiliations.csv")
-F_D1    <- file.path(root, "output", "final", "affiliations_complete_20260817.csv")
+F_D1    <- file.path(root, "output", "final", "affiliations_complete.csv")
 
 ADD_COLS   <- c("source_citation", "affiliation", "affiliation_simple",
                 "note", "added_on")
@@ -111,7 +111,7 @@ seed <- absent %>%
 
 # --- what you typed last time ---------------------------------------------------
 
-read_answers <- function() {
+read_sheet <- function() {
   empty <- tibble(source_citation = character(), affiliation = character(),
                   affiliation_simple = character(), your_note = character(),
                   added_on = character())
@@ -125,10 +125,11 @@ read_answers <- function() {
               affiliation = trimws(blank(affiliation)),
               affiliation_simple = trimws(blank(affiliation_simple)),
               your_note = blank(your_note), added_on = blank(added_on)) %>%
-    filter(nzchar(source_citation), nzchar(affiliation))
+    filter(nzchar(source_citation))
 }
 
-ans <- read_answers()
+sheet_rows <- read_sheet()
+ans <- sheet_rows %>% filter(nzchar(affiliation))
 
 unknown <- setdiff(ans$source_citation, d1$source_citation)
 if (length(unknown)) {
@@ -149,8 +150,15 @@ miss <- setdiff(ADD_COLS, names(existing))
 if (length(miss))
   stop(F_ADDED, " is missing columns: ", paste(miss, collapse = ", "), call. = FALSE)
 
-# Rows for papers this sheet does not cover are none of its business.
-kept <- existing %>% filter(!source_citation %in% papers)
+# Rows for papers this sheet does not cover are none of its business. It covers
+# every paper deliverable 1 still shows as ABSENT, and every paper already in the
+# sheet. The second half matters: once a rebuild drops a supplied paper's
+# placeholders, that paper no longer reads as ABSENT in deliverable 1. Until
+# 2026-09-17 ownership was decided from deliverable 1 alone, so the rows of those
+# papers were kept as someone else's AND written again from the sheet - 66
+# duplicate rows per run, which reached the deliverables and passed verify.
+owned <- union(papers, sheet_rows$source_citation)
+kept <- existing %>% filter(!source_citation %in% owned)
 
 # as.character() throughout: with no answers yet every ifelse() returns
 # logical(0), and bind_rows then refuses to combine it with a character column.
@@ -170,13 +178,23 @@ write_csv(bind_rows(kept, mine)[, ADD_COLS], F_ADDED, na = "")
 
 answered <- unique(mine$source_citation)
 
+# n and the search link come from the citation, not from the seeded rows: a
+# supplied paper has no ABSENT row left to seed from, and its answers used to lose
+# both after the first rebuild.
+n_of <- d1 %>% distinct(source_citation, .keep_all = TRUE) %>%
+  transmute(source_citation, n = blank(n))
+
 filled <- mine %>%
   transmute(source_citation, affiliation, affiliation_simple,
             your_note = as.character(ifelse(note == DEFAULT_NOTE, "", note)),
             added_on = as.character(added_on)) %>%
-  left_join(select(seed, source_citation, n, other_labels_on_this_paper,
-                   find_the_paper) %>% distinct(source_citation, .keep_all = TRUE),
-            by = "source_citation")
+  left_join(n_of, by = "source_citation") %>%
+  left_join(select(seed, source_citation, other_labels_on_this_paper) %>%
+              distinct(source_citation, .keep_all = TRUE),
+            by = "source_citation") %>%
+  mutate(other_labels_on_this_paper = blank(other_labels_on_this_paper),
+         find_the_paper = vapply(source_citation, search_url, character(1),
+                                 USE.NAMES = FALSE))
 
 sheet <- bind_rows(filled, filter(seed, !source_citation %in% answered)) %>%
   mutate(status = ifelse(nzchar(blank(affiliation)), "filled", "open")) %>%
@@ -197,6 +215,9 @@ cat(sprintf("         %d row(s) written from this sheet, over %d paper(s)\n",
             nrow(mine), length(answered)))
 cat(sprintf("         %d row(s) preserved for papers this sheet does not cover\n",
             nrow(kept)))
+if (nrow(existing) != nrow(kept) + nrow(mine))
+  cat(sprintf("         the file held %d row(s) before this run and holds %d now\n",
+              nrow(existing), nrow(kept) + nrow(mine)))
 
 no_label <- mine %>% filter(!nzchar(affiliation_simple))
 if (nrow(no_label))
