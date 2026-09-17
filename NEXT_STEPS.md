@@ -4,39 +4,87 @@ Read `CLAUDE.md` first for the working rules — particularly the one about neve
 project CSV out of Excel.
 
 This file runs top to bottom. **Steps 1 to 7 are done** and kept as the record of how each
-was done; nothing is open. Everything after **Reference** is background.
+was done. **Step 8, Gia's lake-region data, is answered and built; its closing runs are
+left**, listed straight below. Everything after **Reference** is background.
 
 ---
 
-## Where this is up to — 2026-09-16
+## Where this is up to — 2026-09-17, 15:30
 
-Steps 1 to 7 are done and nothing is open. The build is clean — **261 decisions, all
-applying**, and `verify` ends `42 checks, 0 failed`.
-
-**Step 6 is answered** (2026-09-16). The 12 labels whose coordinate the round-1 source
-recorded as `ABSENT` were never gone through and nothing surfaced them until the loop was
-built on 2026-09-15. All 12 are now answered: **10 given a coordinate, 2 left `absent`**
-with a sign-off each. The two label pairs they raised are step 7, both answered the same
-day: one rejected, one merged into the new label `DRASS Reunion`.
+**You answered both step-8 sheets and the loop was run**; the last rebuild wrote the
+deliverables at 15:30. Checked read-only afterwards, nothing run:
 
 | | |
 |---|---|
-| `output/final/affiliations_complete_*.csv` | 1308 rows — 1273 from the spreadsheet, 94 added, 59 `ABSENT` placeholders replaced |
-| `output/final/affiliation_lookup_*.csv` | 1039 pairs |
-| `output/final/affiliation_simple_coords_*.csv` | 308 labels — 168 `ok`, 137 `decided`, 3 `absent` |
+| `label_review.xlsx` | 255 rows, none open. Step 8's 51 pairs: 21 accepted (20 `label_rename` rows), 30 rejected |
+| `coord_review.xlsx` | 241 rows, every label settled. 31 new `coordinate` rows: 22 of Gia's points as they stand, 6 conflicts the merges raised, `ILRAD Nairobi Kenya` on the ILRI point, your own points for `ICIPE Nairobi Kenya` and `MasenoU Maseno Kenya` |
+| `data/affiliation_decisions.csv` | 312 decisions, all `applied` in `output/decisions_report.csv` |
+| `output/final/affiliations_complete.csv` | 1640 rows, 746 papers |
+| `output/final/affiliation_lookup.csv` | 1290 pairs |
+| `output/final/affiliation_simple_coords.csv` | 327 labels — 168 `decided`, 156 `ok`, 3 `absent`, 0 `missing`, 0 `conflict`; none of Gia's points left unchecked |
+
+**Closing runs — not done yet.** Verify has no recorded run on this build, and both sweeps
+last ran at 12:33, before the merges and the new coordinates, so their "109 pairs" and
+"0 flagged" are the old build's. Steps 1 and 2 say to re-run both after a batch of merges.
+
+```bash
+python3 R/verify_affiliations.py      # 49 checks expected
+Rscript R/check_label_candidates.R
+Rscript R/check_coord_sanity.R
+Rscript R/label_review.R              # anything new reaches the sheet; the 21 rows should read applied
+Rscript R/coord_review.R              # likewise; the 23 ticked lake rows should turn manual
+python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py   # if a decision changed
+```
+
+The rebuild should no longer print the `!! lake row 50117` notice, now that
+`IHI Ifakara Tanzania` is merged into `IHI Ifakara`. `output/final/README.txt` still gives the
+counts from before the answers (347 labels, 1298 pairs) and wants updating after these runs.
+
+**Two of the answers, for you to confirm — facts, not recommendations:**
+
+- `MTTI Kendu Bay Kenya` ("Mawego Technical Training Institute, Kendu Bay, Kenya") is
+  `decided` at Gia's point as it stood, -4.0435, 39.6682, which is Mombasa. It is the only one
+  of step 8's four far-from-town points left where it was.
+- `KU Kenya` and `KenyattaU Nairobi Kenya` are merged into `JKUAT Kenya`, which now holds 10
+  Kenyatta University affiliation strings (P.O. Box 43844, Nairobi) beside 5 for Jomo
+  Kenyatta University of Agriculture and Technology. Kenyatta University (Kahawa, Nairobi)
+  and JKUAT (Juja) are separate universities.
+
+### Earlier on 2026-09-17 — before your answers
+
+**Step 8 was open: Gia's lake-region data was in the deliverables, unreviewed.** Her 332 rows
+sit under her own 39 labels. **51 label pairs** wait in `label_review.xlsx` and **39 labels**
+in `coord_review.xlsx`: 37 of her points to check, and 2 labels of hers without a
+coordinate. Answer the merges first. Step 8 has the loop.
+
+The build is clean: **261 decisions, all applying**, and `verify` ends `49 checks, 0 failed`.
+The three deliverables lost their `_20260817` stamp on 2026-09-17.
+
+| | |
+|---|---|
+| `output/final/affiliations_complete.csv` | 1640 rows — 1273 from the spreadsheet, 94 added, 59 `ABSENT` placeholders replaced, 332 of Gia's; 746 papers |
+| `output/final/affiliation_lookup.csv` | 1298 pairs |
+| `output/final/affiliation_simple_coords.csv` | 347 labels — 205 `ok` (37 of them Gia's, unchecked), 137 `decided`, 3 `absent`, 2 `missing` |
+
+**A bug found on the way, fixed 2026-09-17.** `R/absent_review.R` wrote the 66 non-ABSENT
+answers again on every run, so the deliverable held 1374 rows rather than 1308, and the
+extra row had flipped `MoH Nigeria` to `MOH Nigeria` in the formatting-only collapse. Verify
+passed it, because it took its expected count from the same additions file. Step 5 has the
+detail; verify's 43rd check now compares the additions file with the sheet.
 
 **Step 5 was added after steps 1 to 4 were finished**, to go back over every affiliation the
 source could not find, and was done on 2026-09-11: 35 of the 58 papers now have real
 affiliations and 23 are confirmed `ABSENT`. It also exposed a pipeline bug, fixed the same
 day — see step 5.
 
-**Every sheet is answered and nothing is flagged**, but that only covers labels that have a
-coordinate. The sanity sweep checks 305 coordinates and flags 0, with five labels signed off
-by `accept_as_is` — three of them step-5 labels whose affiliations name no country
-(`Illinois NHS`, `UQ`, `University of Copenhagen`). The five label pairs step-5 labels
-raised were all rejected in `label_review.xlsx`. The 12 labels of step 6 had no coordinate,
-so no sweep could say anything about them; the 10 that now have one are swept and none is
-flagged.
+**Before step 8 every sheet was answered and nothing was flagged**, but that only covers
+labels that have a coordinate. The sanity sweep checks 342 coordinates and flags 0, with five
+labels signed off by `accept_as_is` — three of them step-5 labels whose affiliations name no
+country (`Illinois NHS`, `UQ`, `University of Copenhagen`). 37 of the 342 are Gia's, and
+the sweep tests only the country, so its `0 flagged` says nothing about whether her points
+are in the right town. The five label pairs step-5 labels raised were all rejected in
+`label_review.xlsx`. The 12 labels of step 6 had no coordinate, so no sweep could say
+anything about them; the 10 that now have one are swept and none is flagged.
 
 **The three deliverables are in `output/final/`, with a README.txt that documents every
 column, what was done and the known limits.** Everything else in `output/` is working
@@ -44,30 +92,34 @@ files. `output/parity_baseline/` (called `shipped/` until 2026-09-10) is a froze
 pre-decisions build kept only for the R parity check — it still shows 88 missing and 29
 conflict, and its own README says so.
 
-Nothing is `missing` and nothing is in `conflict`. The 3 `absent` are the label `ABSENT`
-itself, which is final, and the two labels step 6 signed off. All 542
-`twatasha_todo.csv` sources are represented; `review_unmatched_sources.csv` is empty.
+Nothing is in `conflict`. The 2 `missing` are Gia's `ILRAD Nairobi Kenya` and
+`Ifakara Centre Ifakara Tanzania`, both open in `coord_review.xlsx`. The 3 `absent` are
+the label `ABSENT` itself, which is final, and the two labels step 6 signed off. All 542
+`twatasha_todo.csv` sources and all 211 of Gia's papers are represented;
+`review_unmatched_sources.csv` is empty.
 
 | step | | |
 |---|---|---|
 | — | environment | **done** 2026-09-03 |
 | — | coordinates: every label settled | **done** 2026-09-07 |
-| **1** | merge duplicate labels | **done** — 124 merges applied, 76 pairs rejected, none open |
-| **2** | check the coordinates already there | **done** — 296 checked, 0 flagged, 5 signed off |
+| **1** | merge duplicate labels | **done** — 125 merges applied, 76 pairs rejected, none open before step 8 |
+| **2** | check the coordinates already there | **done** — 342 checked at 2026-09-17, 0 flagged, 5 signed off |
 | **3** | spot-checks | **done** — reviewed, nothing changed |
 | **4** | the paper version 3 never covered | **done** — 5 affiliations added, coordinate settled |
 | **5** | affiliations the source recorded as ABSENT | **done** 2026-09-11 — 35 papers given affiliations, 23 confirmed `ABSENT`, 11 new labels with coordinates |
 | **6** | coordinates the source recorded as ABSENT | **done** 2026-09-16 — loop built 2026-09-15, all 12 answered: 10 coordinates, 2 left `absent` and signed off |
 | **7** | two label pairs the new coordinates raised | **done** 2026-09-16 — `Centro Hispano-Guineano` / `CREC Equatorial Guinea` rejected; `DRASS France` + the Saint-Denis `Vector Control Service` label merged into the new label `DRASS Reunion` |
+| **8** | Gia's lake-region data | **built and answered** 2026-09-17 — 20 merges, 30 pairs rejected, 31 coordinates, rebuilt 15:30; verify, both sweeps and a last pass of the two sheet scripts still to run (top of this section) |
 
-**The review files that are still not empty are records, not work:**
+**Step 8's open work is in the two sheets.** The review files below were records, not work,
+before step 8; the counts are as at 2026-09-17, after it:
 
-| file | rows | why it is not open work |
+| file | rows | what it is now |
 |---|---|---|
-| `review_simple_conflicts.csv` | 2 | `IRD France` / `MIVEGEC / CIRAD / LIN Montpellier` and `IRD Cameroon` / `ORSTOM/ OCEAC Cameroon` — both pairs deliberately rejected in `label_review.xlsx` |
-| `review_label_duplicates.csv` | 58 | every pair answered in the sheet: 125 applied, 76 rejected, 0 open |
-| `review_label_lumping.csv` | 87 | the granularity question, deliberately not pursued |
-| `review_simple_lumping.csv` | 132 | the same question, older form |
+| `review_simple_conflicts.csv` | 10 | 2 pairs rejected before step 8 (`IRD France` / `MIVEGEC / CIRAD / LIN Montpellier`, `IRD Cameroon` / `ORSTOM/ OCEAC Cameroon`); the other 8 are strings Gia's rows share with an existing label, all raised as open pairs in `label_review.xlsx` |
+| `review_label_duplicates.csv` | 109 | the 58 earlier pairs, all answered, and 51 raised by Gia's labels, all open |
+| `review_label_lumping.csv` | 101 | the granularity question, deliberately not pursued |
+| `review_simple_lumping.csv` | 157 | the same question, older form |
 | `review_us_uk_tokens.csv` | 21 | reviewed 2026-09-10, all 21 expansions correct |
 | `review_labels_collapsed.csv` | 9 | the first 8 reviewed 2026-09-10; the ninth, `MOH Nigeria` → `MoH Nigeria`, came from step 5 |
 | `review_coord_conflicts.csv` | 38 | raw conflicts in the source files, every one resolved by a `coordinate` decision |
@@ -91,8 +143,9 @@ Rscript R/coord_review.R          # re-emit the coordinate rows
 python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py
 ```
 
-200 rows, one per candidate pair — two labels that may be one place — open first and
-worst-first. 153 open, 47 already applied. **Two columns are yours:**
+One row per candidate pair — two labels that may be one place — open first and
+worst-first. 200 rows on 2026-09-07, 153 of them open; 254 at 2026-09-17, 51 open, all
+raised by Gia's labels (step 8). **Two columns are yours:**
 
 | column | |
 |---|---|
@@ -109,7 +162,8 @@ Only four cells are read back: `accepted` (A), `keep` (C), `your_note` (R) and
 `decided_on` (S). Everything else is evidence and is regenerated every run — row counts,
 `coord_status` and coordinate for each side, the distance between them, the evidence that
 raised the pair, the first 500 characters of each label's affiliation strings, and a Google
-Maps link for each coordinate in U and V.
+Maps link for each coordinate in W and X. Column Y `lake` (added 2026-09-17) says which side
+carries Gia's rows: `a`, `b` or `both`.
 
 ### Rows are grouped into clusters, not listed one by one
 
@@ -140,14 +194,15 @@ see that depends on a distinction worth knowing:
 - **Either label `decided`** — the `coordinate` decision overrides the source files, so no
   conflict is raised and the other point is discarded silently.
 
-Column O is for the second case. It fires on any row, ticked or not, and says:
+Column Q is for the second case. It fires on any row, ticked or not, and says:
 
 | it says | meaning |
 |---|---|
 | `N km apart` | the two coordinates are more than 5 km apart |
-| `discards a coordinate you chose` | the label being merged away is `decided` — you are throwing away your own answer, not an unexamined source value |
-| `the discarded point is sanity-flagged` | the point being dropped is one of the 24 in `review_coord_sanity.csv`. This is the comfortable case: the merge takes the bad coordinate away with the label |
-| `KEEPS a sanity-flagged point` | the survivor's coordinate is one of the 24. Think about this one |
+| `discards a coordinate you chose` | both labels are `decided` — the survivor keeps its own, and you are throwing away your other answer, not an unexamined source value |
+| `the coordinate you chose follows the merge; the survivor's own point is discarded` | the label being merged away is `decided` and the survivor is `ok`: the script retargets your coordinate onto the survivor (below), so it is the survivor's source point that goes. Until 2026-09-17 this case wrongly read `discards a coordinate you chose` |
+| `the discarded point is sanity-flagged` | the point being dropped is one in `review_coord_sanity.csv` (none at 2026-09-17). This is the comfortable case: the merge takes the bad coordinate away with the label |
+| `KEEPS a sanity-flagged point` | the point that survives is one in `review_coord_sanity.csv`. Think about this one |
 
 Every run also prints the warnings for merges you have accepted but not yet built, worst
 first, with a maps link to the point being discarded. `Rothamsted Research` is the worked
@@ -179,7 +234,7 @@ two.
   survivor directly, so a rename can never chain through a label that an earlier rename
   created. That trap reports `no_match` and fails verify; through the sheet it cannot
   happen.
-- **It repairs the coordinate sheet.** All 91 labels in `coord_review.xlsx` carry a
+- **It repairs the coordinate sheet.** Every settled label in `coord_review.xlsx` carries a
   `coordinate` decision, and merging a label away orphans it. Each run patches
   `data/coord_review.xlsx` and prints what it did: if the survivor has no coordinate of its
   own the merged label's row is **retargeted** to it, so the coordinate you already chose
@@ -194,7 +249,8 @@ two.
 `Rscript R/check_label_candidates.R` (~7 s, read-only) sweeps the whole label list and
 writes the two files the sheet is built from. Re-run it after a batch of merges.
 
-**`output/review_label_duplicates.csv` — 153 pairs**, 53 of them at `strength >= 4`. Each
+**`output/review_label_duplicates.csv` — 153 pairs when it first ran on 2026-09-07**, 53 of them
+at `strength >= 4`; 109 at 2026-09-17. Each
 pair carries the evidence that raised it, usually several:
 
 | evidence | |
@@ -219,7 +275,7 @@ match `MIVEGEC / CIRAD / LIN Montpellier` on the acronym alone; `UI Nigeria` pic
 
 ### The other half of the same problem — one label, several places
 
-**`output/review_label_lumping.csv` — 86 labels.** Nothing here is in the sheet; it is a
+**`output/review_label_lumping.csv` — 86 labels on 2026-09-07, 101 at 2026-09-17.** Nothing here is in the sheet; it is a
 reading list, and the fix is either a `label_rename` (if two labels should be one) or an
 `affiliation_relabel` (if one label should be two, as `IHI Tanzania` was split into
 `IHI Ifakara` and `IHI Dar es Salaam`).
@@ -256,7 +312,7 @@ does not read as a second country against France.
 Both are regenerated on every rebuild, and every row in them is also a row in
 `label_review.xlsx`. Read them for the reasoning; put the answer in the sheet.
 
-- **`output/review_simple_conflicts.csv`, 18 rows** — one affiliation string carrying two
+- **`output/review_simple_conflicts.csv`, 18 rows on 2026-09-07** (10 at 2026-09-17) — one affiliation string carrying two
   or more labels. Spelling variants still open: `Wits Unitversity` / `Wits Univeristy` /
   `Wits University` (4 of the 18 rows), `UY1` / `UYI Cameroon`, `UoK` / `UofK Sudan`,
   `CNRFP Burina faso` / `CNRFP Burkina Faso`, `MRC Gambia` / `MRC The Gambia` /
@@ -266,7 +322,7 @@ Both are regenerated on every rebuild, and every row in them is also a row in
   questions of institution identity: `IRD Cameroon` vs `OCEAC Cameroon` and vs `Malaria
   Research Laboratory Cameroon`, `IRD Madagascar` vs `RTI Madagascar`, `IRD France` vs
   `MIVEGEC / CIRAD / LIN Montpellier`.
-- **`output/review_simple_lumping.csv`, 135 rows** — how many distinct affiliation strings
+- **`output/review_simple_lumping.csv`, 135 rows on 2026-09-07** (157 at 2026-09-17) — how many distinct affiliation strings
   each label covers. 133 at 2026-08-17; merging labels makes the lumps bigger, not smaller.
   Largest: `SAP Italy` (45), `OCEAC Cameroon` (28), `LSTM United Kingdom` (23),
   `UB / USTTB Mali` (23), `MIVEGEC / CIRAD / LIN Montpellier` (21), `CDC United States`
@@ -409,7 +465,7 @@ suburb, and Guyana is a country in its own right.
 Montpellier and passed it clean. `One World Development Group, Florida` names no country at
 all and cannot be tested.
 
-The sweep is read-only and idempotent, and globs the newest dated deliverable. Re-run it
+The sweep is read-only and idempotent, and reads `output/final/affiliation_simple_coords.csv`. Re-run it
 after any batch of merges, then re-run `coord_review.R` to refresh the open rows.
 
 ---
@@ -483,6 +539,21 @@ expectation the same way. Fixed 2026-09-11: the drop now runs after the re-key, 
 matches citations independently and asserts directly that no supplied paper keeps a
 placeholder (the 42nd check). Details in `CLAUDE.md`, under **Replacing an affiliation the
 source recorded as ABSENT**.
+
+**A second bug, found 2026-09-17, and verify passed that one too.** `R/absent_review.R`
+decided which rows of `added_affiliations.csv` belonged to its sheet from the papers
+deliverable 1 still showed as `ABSENT`. Once a rebuild had dropped a supplied paper's
+placeholders, that paper no longer qualified, so its rows were kept as someone else's *and*
+written again from the sheet: 66 duplicate rows per run, for the 35 papers given real
+affiliations (the 23 still `ABSENT` kept qualifying). One run on 2026-09-16 put them in the
+deliverable — 1374 rows, not 1308 — and the extra `MOH Nigeria` row won the formatting-only
+collapse against `MoH Nigeria`. The script now treats every paper in its sheet as its own
+(`R/absent_review.R:153`), so blanking an answer also undoes it now, and it fills `n` and
+the search link from the citation, which the 66 answered rows had lost. Verify's 43rd check
+compares the additions file with the sheet directly: each answer as many times as the sheet
+holds it. Tested on a sandbox copy first: the current file failed the check (66 extra rows
+over 35 papers), the fixed script took it to 94 rows, a second run changed nothing, and
+the rebuild was the old deliverable minus exactly the 66 earlier copies.
 
 How it was done, for the record:
 
@@ -719,6 +790,153 @@ does. Step 1 has the detail.
 
 ---
 
+## Step 8 — Gia's lake-region data — built and answered 2026-09-17; closing runs left
+
+**Answered 2026-09-17**: 21 of the 51 pairs accepted (20 renames), 30 rejected, 31
+coordinate decisions, rebuilt at 15:30. The closing runs, and two answers to confirm, are at
+the top of **Where this is up to**. The rest of this step is the record of how it was built.
+
+`data/gia_final_data/` holds Gia's lake-region affiliations
+(`lake_region_source_affiliations_africa.csv`, the shape of deliverable 1: 338 rows, 211
+papers, 40 labels) and her coordinates (`lake_region_source_counts.csv`, the shape of
+deliverable 3: 39 labels). **They are in the deliverables, each row under her own label.
+Nothing of hers is matched with an existing label, and none of her coordinates is checked.
+That is yours, in the two sheets:**
+
+| sheet | open | what |
+|---|---|---|
+| `label_review.xlsx` | 51 pairs | 37 set one of her labels against an existing one, 14 are two of hers raised on ordinary evidence. Column Y `lake` says which side is hers |
+| `coord_review.xlsx` | 39 labels | 37 of her points as they stand (`case = lake`: yes means checked, and the label becomes `decided`); `ILRAD Nairobi Kenya` offered the point her counts file gives `ILRI Nairobi Kenya`; `Ifakara Centre Ifakara Tanzania` with no candidate at all |
+
+**`no` on one of her points does not remove it.** The label stays `ok` with her point in the
+deliverable, marked `rejected - needs a new coordinate`, and stays in front of you until you
+tick a coordinate or type your own into H and I with `yes`, as for a sanity suspect in step 2.
+Nothing in either sheet can take a coordinate away from a label that has one: `absent` on a
+row that carries a coordinate stops the run, and clearing H and I first only appends an
+`accept_as_is`, which leaves the point where it is. If one of her labels should end up with no
+coordinate at all, that needs building.
+
+**Answer the merges first.** A merge decides which coordinate survives, so a point of hers
+checked before its label is merged into a `decided` one is thrown away by the merge.
+
+```bash
+# label_review.xlsx: yes/no in A, keep in C, read the warning in Q; save; close
+Rscript R/label_review.R          # answers -> label_rename rows; patches coord_review.xlsx
+Rscript R/coord_review.R
+python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py
+Rscript R/coord_review.R          # second pass: merged labels' rows go, new conflicts appear
+# coord_review.xlsx: yes/no in A (or your own numbers in H and I); save; close
+Rscript R/coord_review.R
+python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py
+```
+
+A merge of an `ok` label into one of hers with a different point makes a `conflict`: both
+points appear in `coord_review.xlsx` and you pick one, as for any conflict. Tested on a
+sandbox copy with `UVRI Uganda` into `UVRI Entebbe Uganda`, 0.28 km apart.
+
+### What to know before answering — facts, not recommendations
+
+- Some of her points are nowhere near the town their label names, and the sanity sweep, which
+  tests only the country, passes them: `MasenoU Maseno Kenya` is in Nairobi (276 km from
+  `MU Kenya`'s point), `MTTI Kendu Bay Kenya` is in Mombasa, `ICIPE Nairobi Kenya` is near
+  Homa Bay (32 km from `ICIPE Kenya`), and `NLRRI Tororo Uganda` is 173 km from Tororo, 0.26 km
+  from `NaLIRRI Uganda`. Read coordinate evidence for these pairs against the text.
+- `KEMRI Kenya` and `KEMRI Nairobi Kenya` are 112 km apart.
+- One of her rows carries exactly the string a 2026-09-04 `affiliation_relabel` sends to
+  `IHI Ifakara` ("Ifakara Health Institute, Mlabani Passage, Ifakara, Tanzania"). A relabel
+  written for spreadsheet rows does not move hers, so the row stays under
+  `IHI Ifakara Tanzania`, every rebuild names it, and the pair is open in the sheet with
+  `shared_affiliation` evidence. Merge them and the message stops.
+- `Ifakara Centre Ifakara Tanzania` is the label the `Centre` find-and-replace damaged: 22
+  rows in her file, 21 in the deliverable (one repeated an existing row on Fillinger et al.).
+  Her counts file gave `IHI Ifakara Tanzania` n = 24, which is that label's 2 rows plus these
+  22. It has no coordinate of its own.
+- Three rows of hers on papers already present are the same institution as an existing row,
+  worded differently, and were added, because only the same text is dropped: NLRRI on Ramphul
+  et al. 2009, ICIPE Mbita on Scholte et al., the Ifakara centre on Geissbühler et al.
+  `output/review_lake_overlap.csv` lists all 12 rows on the 7 shared papers.
+- Her point for `MAFS Dar es Salaam Tanzania` is unused: its only row repeated an existing
+  one on Fillinger et al. and was dropped, and no label without a coordinate ends in the same
+  words. `coord_review.R` names it on every run.
+
+### How her rows are handled
+
+**Rows** (`R/tidy_affiliations.py`). Loaded after the additions, `row_xlsx` 50001 up, through
+the same repair, whitespace, collapse and decision steps as every other row.
+- **Citations.** A citation of hers on `twatasha_todo.csv` resolves to it with the existing
+  resolver, and n comes from the todo file: 7 papers, 3 exact (Besansky's n becomes 57, not
+  her 34) and 4 through the mojibake key. The other 204 are new: citation byte-identical as
+  she delivered it, n from her file. **`vector_extraction_data.csv` is not read**:
+  `R/sources_to_check.R:35` built the todo list with a `left_join` on (source_citation, n), so
+  a paper of hers not on it had already matched the occurrence records on both. One of the
+  204, a Geissbühler et al. paper, keeps `Geissb√ºhler` because that is the text it matched.
+- **Two repairs, her rows only, logged.** `IHI Ifakara Tanzania` inside a longer cell becomes
+  `Centre` again: 148 affiliations, 22 labels. As a whole cell it is a genuine label and is
+  left. One `Ð` becomes `–`. `output/review_lake_repairs.csv` lists every reading in context
+  ("International Centre of Insect", ×26). Centre or Center cannot be recovered.
+- **Papers already present.** A row of hers is dropped when its paper already carries the
+  same affiliation under `key()`: 6 dropped, 6 added.
+- **Coordinates.** Her counts file (longitude, then latitude, read by name) is a third source,
+  after the two original files. A label they left without a coordinate takes her point; a
+  label they resolved that has a different point of hers becomes a `conflict`. Until a merge
+  shares a label, no key is shared, so nothing existing moved: all 308 earlier rows of
+  deliverable 3 and the first 1308 rows of deliverable 1 were byte-identical.
+  `output/review_lake_counts.csv` names her unused points (`ILRI`, `MAFS`), her labels without
+  a coordinate, and the n = 24 above.
+- **Without `data/gia_final_data/`** the build is byte-identical to the one before step 8,
+  and verify runs 43 checks.
+- `output/label_sources.csv` counts rows per label and how many are hers, for the sweep and
+  the sheet.
+
+**The label sweep** (`R/check_label_candidates.R`) adds three kinds of evidence, only for a
+pair with her rows on one side and other rows on the other: `same_acronym` (the same leading
+acronym, dropped when the two name different countries), `shared_affiliation` also from her
+dropped rows, and `near_point` allowed on its own. 109 pairs: the 58 earlier ones unchanged
+except `IHI Dar es Salaam` / `IHI Ifakara`, whose phrase is now under three labels
+(`shared_phrase_only2` became `shared_phrase`; the pair was already answered); 37 of hers
+against existing labels, 12 of them raised only by the new evidence; 14 of hers against each
+other.
+
+**`R/label_review.R`** has column Y `lake`, and its warning is corrected. When the label
+merged away is `decided` and the survivor is `ok`, section 7 retargets your coordinate onto
+the survivor, so the warning now says `the coordinate you chose follows the merge; the
+survivor's own point is discarded`. It used to say `discards a coordinate you chose`. Ten rows
+carry the corrected wording: nine already answered, and the open pair of the long-form Kisumu
+label with `KEMRI Kisumu Kenya`. The run's map link now points at the point actually discarded.
+
+**`R/coord_review.R`** builds the `case = lake` rows above, and a ticked row that later turns
+`manual` keeps the note already on record. Without that, a checked point of hers lost
+`source: lake_region_source_counts.csv` on the second pass.
+
+**`R/verify_affiliations.py`: 49 checks.** Changed, computed independently of tidy: the row
+count (`1273 + added − replaced + lake − already on their paper`), citations verbatim in the
+todo list or her own file, n, the mojibake check exempting her 204 citations as delivered, the
+relabel check on non-lake rows, the non-null counts. New: every paper of hers represented;
+her rows once each, less those already on their paper (as a multiset, so a lost row and a
+duplicate both fail); no `IHI Ifakara Tanzania` left inside a longer cell; no `Ð`; her points
+verbatim on every live, undecided label; 20 random rows of hers unchanged apart from the
+repairs. Each was made to fail in a sandbox by the fault it guards against. **What verify
+cannot see: a citation Gia herself mistyped among the 204.** Nothing independent holds those
+bytes without reading the extraction data.
+
+### Tested before it touched the project
+
+On sandbox copies, in the order the real run used: rebuild, both sweeps, `label_review.R`,
+`coord_review.R`. Then five answers typed in with openpyxl, in two batches, each followed by
+the loop twice, verify 49/0 every time: her `IHI Ifakara Tanzania` into the `decided`
+`IHI Ifakara` (6 rows, your coordinate kept); `UVRI Uganda` into her `UVRI Entebbe Uganda` (a
+conflict, then one point ticked); her `KEMRI Kisumu Kenya` kept over the `decided` long-form
+Kisumu label (the corrected warning, your coordinate followed the merge); the `ILRI` point
+ticked for `ILRAD`; one of her points ticked as checked. With no answers, `label_review.R` then
+`coord_review.R` leave the decisions file with the same 261 rows; only the order of the two
+`DRASS Reunion` renames changes, which the committed script did too.
+
+**The deliverables also lost their `_20260817` stamp** on 2026-09-17, first and on its own:
+the sandbox rebuild was byte-identical under the new names, old and new R scripts wrote
+identical outputs, and the dated files were deleted after `cmp` on the project.
+
+---
+
 ## After every change — rebuild and read the output
 
 **Save and close the sheet before running its script.** Each `*_review.R` rewrites its own
@@ -737,10 +955,12 @@ names them. **A decision that did not apply is almost always a mistyped target**
 `output/decisions_report.csv` says which. `verify` fails the run on any of them, which is
 the guard against a silent no-op.
 
-`verify` runs 36 checks with an empty decisions file, 41 once it holds anything, and 42 once
-`data/added_affiliations.csv` holds rows. The extra five confirm your decisions landed; the
-42nd confirms every replaced placeholder is gone. A rise from 36 to 41 to 42 is expected,
-not a regression.
+`verify` runs 36 checks with an empty decisions file, 41 once it holds anything, 43 once
+`data/added_affiliations.csv` holds rows, and 49 once `data/gia_final_data/` is present. The
+extra five confirm your decisions landed; the 42nd confirms every replaced placeholder is
+gone; the 43rd that the additions file holds each `absent_review.xlsx` answer as often as the
+sheet does; the last six check Gia's rows (step 8). A rise from 36 to 41 to 43 to 49 is
+expected, not a regression.
 
 ---
 
@@ -757,7 +977,7 @@ not a regression.
 | `coordinate` | **`R/coord_review.R`**, from `data/coord_review.xlsx` | overrides the source files; sets `coord_status = decided` |
 | `affiliation_relabel` | you, in the CSV | moves one affiliation string onto a different label |
 | `token_replacement` | you, in the CSV | overrides an inferred us/uk expansion |
-| `accept_as_is` | you, in the CSV | marks `reviewed = TRUE`; changes nothing |
+| `accept_as_is` | you, in the CSV; or **`R/coord_review.R`**, appended from `absent` in column A of `coord_review.xlsx` | marks `reviewed = TRUE`; changes nothing. For a label with no coordinate it is the sign-off that keeps it that way |
 | `note_only` | you, in the CSV | records a note; marks reviewed |
 
 The two scripts each rewrite their own decision type and pass every other row through
@@ -773,7 +993,8 @@ Rscript R/coord_review.R          # build/refresh data/coord_review.xlsx
 Rscript R/coord_review.R          # answers -> data/affiliation_decisions.csv
 ```
 
-All 91 labels in it are settled. One row per *candidate* coordinate; a label with two
+At 2026-09-17 it holds 176 labels: 137 settled, and 39 open from Gia's data (step 8). One
+row per *candidate* coordinate; a label with two
 competing coordinates gets a row each, and two yeses for one label is an error that stops
 the script rather than letting it pick for you.
 
@@ -805,14 +1026,17 @@ every change (rule 2 in `CLAUDE.md`). So never run the old bulk-adopt path,
 `GEOCODING_NOTES.md` used to recommend: it would replace every decision in the file with 88
 proposals.
 
-### The review files at a glance — counts at 2026-09-11
+### The review files at a glance — counts at 2026-09-17
 
 | file | rows | what it is | answer goes |
 |---|---|---|---|
-| `review_label_duplicates.csv` | 58 | two labels that may be one place | `label_review.xlsx` |
-| `review_label_lumping.csv` | 87 | one label that may be several places | `label_review.xlsx` or the CSV |
-| `review_simple_conflicts.csv` | 2 | one string carrying two labels | `label_review.xlsx` |
-| `review_simple_lumping.csv` | 132 | strings per label | `label_review.xlsx` or the CSV |
+| `review_label_duplicates.csv` | 109 | two labels that may be one place | `label_review.xlsx` |
+| `review_label_lumping.csv` | 101 | one label that may be several places | `label_review.xlsx` or the CSV |
+| `review_simple_conflicts.csv` | 10 | one string carrying two labels | `label_review.xlsx` |
+| `review_simple_lumping.csv` | 157 | strings per label | `label_review.xlsx` or the CSV |
+| `review_lake_repairs.csv` | 62 | every reading the `Centre` and `Ð` repairs to Gia's rows produced | nothing, unless wrong |
+| `review_lake_overlap.csv` | 12 | Gia's rows on the 7 papers already present: dropped or added | `label_review.xlsx`, where it matters |
+| `review_lake_counts.csv` | 6 | her unused points, her labels without a coordinate, her n against her rows | `coord_review.xlsx` |
 | `review_coord_sanity.csv` | 0 | coordinate outside its country, or no country to test | `coord_review.xlsx`, or `accept_as_is` |
 | `review_us_uk_tokens.csv` | 21 | inferred us/uk expansions | `token_replacement` |
 | `review_encoding_repairs.csv` | 411 | every encoding repair made | nothing, unless wrong |

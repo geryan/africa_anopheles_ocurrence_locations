@@ -1,75 +1,51 @@
-Continuing the affiliation cleanup, eighth session. Read CLAUDE.md — "Where this is up to"
-and the section under it, "The absent coordinates", are the current state of the build and
-are accurate. NEXT_STEPS.md is the work queue; steps 1 to 7 are done and it records how each
-was done. Then read LAKE_MERGE_PLAN.md, the next piece of work: it is written and its four
-design questions are answered, but it is NOT yet approved. Do not read anything else to get
-oriented, and do not re-audit the project.
+Continuing the affiliation cleanup, tenth session. Read CLAUDE.md — "Where this is up to" is
+the current state of the build and is accurate. NEXT_STEPS.md is the work queue: steps 1 to 7
+are done, and step 8 (Gia's lake-region data) is answered and built, with its closing runs
+left. Do not read anything else to get oriented, and do not re-audit the project.
 
-FIRST ACTION: read those three files and run nothing — no rebuild, no sweep, no review
-script. Tell me in a few lines what LAKE_MERGE_PLAN.md will do, then wait for me to approve
-it or change it.
+FIRST ACTION: read those two files and run nothing. Put the two questions under STEP 8 below
+to me, then wait: I will tell you when to do the closing runs.
 
-STATE. Unchanged since 2026-09-16. The seventh session (2026-09-17) only read files, wrote
-LAKE_MERGE_PLAN.md and rewrote this file; it ran nothing that writes and changed nothing
-else. The build is clean: 261 decisions, all applying, and `python3
-R/verify_affiliations.py` ends `42 checks, 0 failed`. The three deliverables are in
-output/final/ — 1308 rows, 1039 lookup pairs, 308 labels (168 ok, 137 decided, 3 absent,
-nothing missing, nothing in conflict). output/final/README.txt is out of date (it says 309
-labels and 13 absent); the plan rewrites it. All 542 papers are represented. The coordinate
-sanity sweep checks 305 and flags 0; the label sweep raises 58 pairs and every one is
-answered.
+STATE, 2026-09-17, 15:30. I answered both step-8 sheets and the loop was run; the last
+rebuild wrote the deliverables at 15:30. The ninth session checked the files read-only and ran
+nothing, so verify is NOT confirmed on this build.
+  label_review.xlsx   255 rows, none open. Step 8's 51 pairs: 21 accepted (20 label_rename
+                      rows), 30 rejected. IHI Ifakara Tanzania and Ifakara Centre Ifakara
+                      Tanzania both went into IHI Ifakara.
+  coord_review.xlsx   241 rows, every label settled. 31 new coordinate rows: 22 of Gia's
+                      points ticked as they stand, 6 conflicts the merges raised, ILRAD given
+                      the ILRI point, my own points for ICIPE Nairobi Kenya and MasenoU.
+  decisions           312, all `applied` in output/decisions_report.csv (168 coordinate,
+                      132 label_rename, 7 accept_as_is, 5 affiliation_relabel).
+  deliverables        affiliations_complete.csv 1640 rows, 746 papers; affiliation_lookup.csv
+                      1290 pairs; affiliation_simple_coords.csv 327 labels: 168 decided,
+                      156 ok, 3 absent, 0 missing, 0 conflict. No coordinate still comes
+                      unchecked from Gia's counts file.
 
-STEPS 1 TO 7 ARE DONE:
-  1  labels merged — 125 applied, 76 rejected
-  2  the coordinates already there, swept and settled
-  3  spot-checks
-  4  the paper version 3 never covered
-  5  affiliations the source recorded as ABSENT — 35 papers given affiliations, 23 confirmed
-  6  coordinates the source recorded as ABSENT (2026-09-16) — the 12 labels nothing had ever
-     shown me: 10 given a coordinate, 2 left absent and signed off (LRP Cameroon; Mission for
-     the Prevention and Fight against Vector Endemics, Réunion, France)
-  7  the two label pairs those coordinates raised — CREC / Centro Hispano-Guineano rejected;
-     DRASS France + the Saint-Denis Vector Control Service label merged into DRASS Reunion
-     (2 rows, 80 records, -20.9006092, 55.4874248)
+STEP 8 — CLOSING RUNS, when I say go (lock files first). Commands at the top of NEXT_STEPS.md.
+  1. python3 R/verify_affiliations.py — 49 checks expected.
+  2. check_label_candidates.R and check_coord_sanity.R. Both last ran at 12:33, before the
+     merges and the new coordinates, so "109 pairs" and "0 flagged" are the old build's.
+  3. label_review.R, then coord_review.R, so anything the sweeps raise reaches the sheets.
+     Housekeeping too: the 21 accepted rows still read `accepted`, and the 23 ticked lake
+     rows should turn `manual`. Rebuild and verify if a decision changes.
+  4. The rebuild should no longer print the `!! lake row 50117` notice; say if it does.
+  5. output/final/README.txt still has the pre-answer counts (347 labels, 1298 pairs);
+     update it once the runs are done.
 
-NEXT: GIA'S LAKE-REGION DATA — PLANNED 2026-09-17, NOT APPROVED, NOT STARTED.
-data/gia_final_data/ holds Gia's lake-region affiliations
-(lake_region_source_affiliations_africa.csv, the shape of deliverable 1) and their coordinates
-(lake_region_source_counts.csv, the shape of deliverable 3). There is no lookup table. They
-are to be merged into output/final, and I approve every match between her labels and the
-existing ones before it is merged. Separately, the _20260817 stamp comes off the three files
-in output/final. LAKE_MERGE_PLAN.md has the full plan: the file-by-file changes, the
-expected numbers and the sandbox tests.
+TWO ANSWERS TO PUT TO ME — facts, no recommendation; they are my calls:
+  - MTTI Kendu Bay Kenya ("Mawego Technical Training Institute, Kendu Bay, Kenya") was
+    ticked at Gia's point as it stood, -4.0435, 39.6682, which is Mombasa. Of the four
+    far-from-town points step 8 listed, it is the only one left where it was.
+  - KU Kenya and KenyattaU Nairobi Kenya were merged into JKUAT Kenya, which now holds 10
+    Kenyatta University affiliation strings (P.O. Box 43844, Nairobi) beside 5 for Jomo
+    Kenyatta University of Agriculture and Technology. Kenyatta University (Kahawa, Nairobi)
+    and JKUAT (Juja) are separate universities.
 
-What I decided on 2026-09-17:
-  - matches are answered in label_review.xlsx, not a new sheet. Her pairs come in as new
-    open rows, with the same columns and the same yes/no, keep and `new:` answers;
-  - her rows reach output/final on the next rebuild, under her own labels, and merge as I
-    approve them;
-  - on the 7 papers already in deliverable 1, only affiliations the paper does not already
-    carry are added: 6 of her 12 rows there are dropped and 6 added;
-  - vector_extraction_data.csv may be read ONCE, by a new R/lake_sources.R, to write
-    output/lake_todo.csv (citation and n for her 204 new papers). That is the only exception
-    to never reading it.
-
-Facts about her files that the plan depends on:
-  - 338 rows, 211 papers, 40 labels. The file has a byte-order mark, Windows line endings,
-    and line breaks inside 22 affiliations. The counts file's columns are longitude, then
-    latitude.
-  - A partial find-and-replace turned "Centre" into "IHI Ifakara Tanzania" in 148
-    affiliations and 22 labels (the label `Ifakara IHI Ifakara Tanzania Ifakara Tanzania`).
-    `IHI Ifakara Tanzania` as a whole cell (2 rows) is genuine.
-  - 7 of her papers are already in deliverable 1; for 4 of them her citation carries
-    mojibake. The other 204 papers are new, and their citations must stay byte-identical
-    (rule 3).
-  - The counts file says ILRI Nairobi Kenya where her rows say ILRAD Nairobi Kenya.
-  - Some of her coordinates are nowhere near the town their label names (MasenoU Maseno
-    Kenya is in Nairobi, MTTI Kendu Bay Kenya in Mombasa). The sanity sweep tests the
-    country only and will pass them.
-
-Order once approved: Part A (the rename) first and on its own, tested in a sandbox until the
-rebuild reproduces the dated files byte-for-byte; then B0 to B7, sandbox first, then my
-files. Nothing in the plan decides a merge, a coordinate or a label for me.
+Also fixed on 2026-09-17, recorded in CLAUDE.md and step 5: R/absent_review.R re-appended 66
+answers on every run, so deliverable 1 had 1374 rows instead of 1308 and verify passed it.
+The script now owns every paper in its sheet; verify's 43rd check compares the additions
+file with the sheet.
 
 HOW WE WORK. There are four sheet-and-script loops and I make every judgement call in a
 sheet. You never put an answer in a sheet for me — not yes/no, not a coordinate, not a
@@ -86,9 +62,8 @@ What each sheet takes:
                       `absent` leaves the label without one and appends an accept_as_is
                       decision carrying my note from M. Six cells are read: A, C, H, I, M, N.
   label_review.xlsx   column A: yes / no. Column C `keep` names the survivor and may name
-                      any label — or `new: <name>` to create one, which is how DRASS Reunion
-                      was made. Four cells are read: A, C, R, S. The `warning` column is Q
-                      (CLAUDE.md says O; it is wrong) and the two maps links are W and X.
+                      any label — or `new: <name>` to create one. Four cells are read: A, C,
+                      R, S. `warning` is Q, the two maps links W and X, `lake` Y.
 
 Run label_review.R before coord_review.R when both are in play: a merge patches the
 coordinate sheet and coord_review.R turns that patch back into decisions.
@@ -101,18 +76,19 @@ CLAUDE.md.
 
 Never hand me a manual procedure for work that recurs. If a task needs the same judgement
 made repeatedly and no mechanism exists, say so plainly and build the loop. Check the work
-actually surfaces where I am working: step 6 existed because 12 labels never did, and both
-mechanisms added on 2026-09-16 existed because an answer I wanted to give had nowhere to go.
+actually surfaces where I am working: step 6 existed because 12 labels never did, and the
+`case = lake` rows exist because Gia's points otherwise never would.
 
 Test a change to any script on a sandbox copy before running it on my files, and say what
-the test showed. For the lake work, add data/gia_final_data to the sandbox, and symlink
-data/vector_extraction_data.csv into it rather than copying it.
+the test showed. The sandbox recipe is in memory; include data/gia_final_data. Do NOT copy
+or symlink data/vector_extraction_data.csv into it.
 
 If verify fails after a change that legitimately moves a count, teach the assertion the new
 expectation, computed from the same inputs. Do not loosen or delete it, and do not compute
-the expectation the same way the pipeline does — that is how a real bug passed verify on
-2026-09-11. It runs 36 checks with an empty decisions file, 41 with decisions, 42 once
-added_affiliations.csv holds rows; the lake plan takes it to 48.
+the expectation the same way the pipeline does — or take it from a file the pipeline
+generates: that is how 66 duplicate rows passed verify. It runs 36 checks with an empty
+decisions file, 41 with decisions, 43 once added_affiliations.csv holds rows, 49 once
+data/gia_final_data/ is present.
 
 WHEN I ASK ABOUT A LABEL. Answer from the review CSVs in output/ plus a web search if the
 institution is unclear. Do not volunteer opinions on labels I have not asked about — EXCEPT
@@ -131,37 +107,39 @@ TRAPS THAT HAVE COST TIME.
   type, save, close, run.
 - The build goes stale quietly. `*_review.R` writes decisions; nothing is in the
   deliverables until `tidy_affiliations.py` runs.
-- After a batch of merges the coordinate sheet can need two passes: coord_review.R reads the
-  current deliverables, so run it, rebuild, then run it again if stale rows remain. A
-  coordinate decision whose label a rename takes away is dropped in the same pass, fixed
-  2026-09-16; before that the build went `42 checks, 2 failed` and cleared on a second run.
-- A sweep saying "0 flagged" only covers what it can see. check_coord_sanity.R sweeps labels
-  that have a coordinate, so it says nothing about a label that has none. It also tests only
-  the country, so a point in the wrong town passes.
+- After a batch of merges the coordinate sheet needs two passes: coord_review.R reads the
+  current deliverables, so run it, rebuild, then run it again. A merged-away label's lake row
+  goes on the second pass, and a merge of an ok label into one of Gia's with a different
+  point shows up there as a conflict with both points open.
+- A ticked sanity or lake row turns `case = manual` once its source stops offering it. That
+  is expected; its decision and its recorded note are kept.
+- Rebuilds printed `!! lake row 50117 keeps her label 'IHI Ifakara Tanzania' ...` until that
+  label was merged into IHI Ifakara, which I did on 2026-09-17. It should now be gone; if it
+  still prints, say so.
+- A sweep saying "0 flagged" only covers what it can see. check_coord_sanity.R tests only
+  the country, so a point in the wrong town passes — which is exactly the state of several
+  of Gia's points.
 - output/final/ holds the deliverables. output/parity_baseline/ is a frozen pre-decisions
-  build kept only as a test fixture — it still shows 88 missing and 29 conflict and is NOT
-  the product. Both directories have a README.txt.
+  build kept only as a test fixture and is NOT the product. Both have a README.txt.
 - The `decided_on` dates on label_rename rows are immaterial and settled; do not raise them.
+- label_review.R writes the label_rename rows in its own order. On 2026-09-17 that moved the
+  two DRASS Reunion renames within the decisions file, once; they now sit where the script
+  writes them. Same rows; not a change to raise.
 
-NEVER READ, they are huge and irrelevant: data/vector_extraction_data.csv (except the one
-read by R/lake_sources.R above), output/diff_report_*.csv, output/review_encoding_repairs.csv,
-output/review_simple_lumping.csv, and any .tif/.geotiff/.zip. Use grep or head on the review
-CSVs; never cat one whole.
+NEVER READ, they are huge and irrelevant: data/vector_extraction_data.csv — not once, not
+for any purpose, no sanctioned exception — output/diff_report_20260817.csv,
+output/review_encoding_repairs.csv, output/review_simple_lumping.csv, and any
+.tif/.geotiff/.zip. Use grep or head on the review CSVs; never cat one whole.
 
 STILL OPEN, LOWER PRIORITY, do not start unless I ask:
-- output/review_label_lumping.csv (87) and output/review_simple_lumping.csv (132): how
+- output/review_label_lumping.csv (101) and output/review_simple_lumping.csv (157): how
   coarse a label should be. `SAP Italy` covers 45 affiliation strings, `OCEAC Cameroon` 28.
   Deliberately not pursued.
 - National Center for the Fight against Malaria, Ouagadougou, Burkina Faso (1 row, 4
   records, 12.3642904, -1.5050645) and CNRFP Burkina Faso (15 rows, 822 records, 12.349733,
   -1.4903285) are 2.3 km apart and deliberately left as two labels; the sweep does not
   raise them. Do not re-raise it unless I do.
-- Stale figures in the docs, noticed 2026-09-17 and not fixed. Correct them when those
-  files are next edited for the lake work:
-    - NEXT_STEPS.md's status table says 124 merges (it is 125) and 296 coordinates
-      checked (305);
-    - "All 91 labels" in coord_review.xlsx appears twice (139 labels);
-    - "one of the 24" sanity-flagged points (0);
-    - CLAUDE.md's label-sweep section says "55 now" and "84 now" (58 and 87);
-    - the Reference decision-type table lists accept_as_is as hand-written only;
-    - the "counts at 2026-09-11" heading sits over 2026-09-16 figures.
+- Noticed 2026-09-17, cosmetic, not fixed: output/review_labels_collapsed.csv comes out in a
+  different row order on each run (Python set order), and absent_review.R reports
+  `OCCGE Benin` as a new label wanting a coordinate on every run although a rename folds it
+  into CREC Benin.
