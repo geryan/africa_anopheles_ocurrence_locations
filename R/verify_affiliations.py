@@ -301,11 +301,27 @@ if os.path.exists(F_DEC) and os.path.exists(F_REP):
         if got != {r.new_value.strip()}:
             wrong.append((r.target[:40], sorted(got)))
     check('every affiliation_relabel took effect', len(wrong) == 0, str(wrong[:5]))
+
+    # lake_relabel is the same assertion WITHOUT the exemption, so it is checked
+    # against the whole of deliverable 1 rather than its first N_BASE rows: the
+    # point of the type is that Gia's rows move too, and a check that looked only
+    # at the spreadsheet rows would pass a run in which none of hers had budged.
+    lr = dec[dec.decision_type == 'lake_relabel']
+    if len(lr):
+        wrong = []
+        for _, r in lr.iterrows():
+            got = set(D1.loc[D1.affiliation == r.target.strip(), 'affiliation_simple'].dropna())
+            if got != {r.new_value.strip()}:
+                wrong.append((r.target[:40], sorted(got)))
+        check("every lake_relabel took effect, Gia's rows included",
+              len(wrong) == 0, str(wrong[:5]))
+
     DECIDED_LABELS = set(dec.loc[dec.decision_type.isin(
         ['label_rename', 'coordinate', 'accept_as_is', 'note_only']), 'target'].str.strip())
     DECIDED_LABELS |= set(dec.loc[dec.decision_type.isin(
-        ['label_rename', 'affiliation_relabel']), 'new_value'].str.strip())
-    DECIDED_AFFILS = set(dec.loc[dec.decision_type == 'affiliation_relabel', 'target'].str.strip())
+        ['label_rename', 'affiliation_relabel', 'lake_relabel']), 'new_value'].str.strip())
+    DECIDED_AFFILS = set(dec.loc[dec.decision_type.isin(
+        ['affiliation_relabel', 'lake_relabel']), 'target'].str.strip())
 else:
     print('SKIP  decisions checks (no decisions file or report present)')
     DECIDED_LABELS, DECIDED_AFFILS = set(), set()

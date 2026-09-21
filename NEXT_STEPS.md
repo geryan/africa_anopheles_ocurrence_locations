@@ -1,54 +1,61 @@
-# NEXT_STEPS.md — what is left, in order
+# NEXT_STEPS.md — the record of the work, in order
 
 Read `CLAUDE.md` first for the working rules — particularly the one about never saving a
 project CSV out of Excel.
 
-This file runs top to bottom. **Steps 1 to 7 are done** and kept as the record of how each
-was done. **Step 8, Gia's lake-region data, is answered and built; its closing runs are
-left**, listed straight below. Everything after **Reference** is background.
+This file runs top to bottom. **Steps 1 to 9 are all done** and are kept as the record of
+how each was done; **nothing is open**. The state of the deliverables is straight below.
+Everything after **Reference** is background.
 
 ---
 
-## Where this is up to — 2026-09-17, 15:30
+## Where this is up to — 2026-09-21: nothing is open
 
-**You answered both step-8 sheets and the loop was run**; the last rebuild wrote the
-deliverables at 15:30. Checked read-only afterwards, nothing run:
+Every sheet is answered, both coordinate sweeps flag nothing, the label sweep has no open
+pair, and `python3 R/verify_affiliations.py` ends **50 checks, 0 failed**.
 
 | | |
 |---|---|
-| `label_review.xlsx` | 255 rows, none open. Step 8's 51 pairs: 21 accepted (20 `label_rename` rows), 30 rejected |
-| `coord_review.xlsx` | 241 rows, every label settled. 31 new `coordinate` rows: 22 of Gia's points as they stand, 6 conflicts the merges raised, `ILRAD Nairobi Kenya` on the ILRI point, your own points for `ICIPE Nairobi Kenya` and `MasenoU Maseno Kenya` |
-| `data/affiliation_decisions.csv` | 312 decisions, all `applied` in `output/decisions_report.csv` |
 | `output/final/affiliations_complete.csv` | 1640 rows, 746 papers |
-| `output/final/affiliation_lookup.csv` | 1290 pairs |
-| `output/final/affiliation_simple_coords.csv` | 327 labels — 168 `decided`, 156 `ok`, 3 `absent`, 0 `missing`, 0 `conflict`; none of Gia's points left unchecked |
+| `output/final/affiliation_lookup.csv` | 1289 pairs |
+| `output/final/affiliation_simple_coords.csv` | 327 labels — 183 `decided`, 141 `ok`, 3 `absent`, 0 `missing`, 0 `conflict` |
+| `data/affiliation_decisions.csv` | 345 decisions, all `applied` — 183 `coordinate`, 133 `label_rename`, 16 `accept_as_is`, 10 `affiliation_relabel`, 3 `lake_relabel` |
+| `data/label_review.xlsx` | 265 pairs: 150 applied, 115 rejected, none open |
+| `data/coord_review.xlsx` | 256 rows over 183 labels, every one settled |
+| `R/check_coord_sanity.R` | 324 checked, 0 flagged, 5 signed off |
+| `R/check_coord_place.R` | 324 checked, 0 flagged, 9 signed off, 74 untestable |
+| `R/check_label_candidates.R` | 77 pairs, every one answered |
 
-**Closing runs — not done yet.** Verify has no recorded run on this build, and both sweeps
-last ran at 12:33, before the merges and the new coordinates, so their "109 pairs" and
-"0 flagged" are the old build's. Steps 1 and 2 say to re-run both after a batch of merges.
+`output/final/README.txt` documents the three files, what was done and the known limits, and
+was brought to this state on 2026-09-21.
+
+To re-run the whole thing from the source files:
 
 ```bash
-python3 R/verify_affiliations.py      # 49 checks expected
+python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py
 Rscript R/check_label_candidates.R
 Rscript R/check_coord_sanity.R
-Rscript R/label_review.R              # anything new reaches the sheet; the 21 rows should read applied
-Rscript R/coord_review.R              # likewise; the 23 ticked lake rows should turn manual
-python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py   # if a decision changed
+Rscript R/check_coord_place.R
 ```
 
-The rebuild should no longer print the `!! lake row 50117` notice, now that
-`IHI Ifakara Tanzania` is merged into `IHI Ifakara`. `output/final/README.txt` still gives the
-counts from before the answers (347 labels, 1298 pairs) and wants updating after these runs.
+If a sweep ever raises something again, the loops still work: `Rscript R/label_review.R`
+for a label pair, `Rscript R/coord_review.R` for a coordinate, then rebuild and verify.
+Save and CLOSE the sheet before running its script.
 
-**Two of the answers, for you to confirm — facts, not recommendations:**
+| step | | |
+|---|---|---|
+| — | environment | **done** 2026-09-03 |
+| — | coordinates: every label settled | **done** 2026-09-07 |
+| **1** | merge duplicate labels | **done** — 150 merges applied, 115 pairs rejected, none open |
+| **2** | check the coordinates already there (country) | **done** — 324 checked, 0 flagged, 5 signed off |
+| **3** | spot-checks | **done** — reviewed, nothing changed |
+| **4** | the paper version 3 never covered | **done** — 5 affiliations added, coordinate settled |
+| **5** | affiliations the source recorded as ABSENT | **done** 2026-09-11 — 35 papers given affiliations, 23 confirmed `ABSENT`, 11 new labels with coordinates |
+| **6** | coordinates the source recorded as ABSENT | **done** 2026-09-16 — all 12 answered: 10 coordinates, 2 left `absent` and signed off |
+| **7** | two label pairs the step-6 coordinates raised | **done** 2026-09-16 — `CREC` pair rejected, `DRASS Reunion` created |
+| **8** | Gia's lake-region data | **done** 2026-09-21 — merged, every label and coordinate of hers reviewed |
+| **9** | the town check, and the labels it caught | **done** 2026-09-21 — `R/check_coord_place.R` built, 22 coordinates raised and all settled |
 
-- `MTTI Kendu Bay Kenya` ("Mawego Technical Training Institute, Kendu Bay, Kenya") is
-  `decided` at Gia's point as it stood, -4.0435, 39.6682, which is Mombasa. It is the only one
-  of step 8's four far-from-town points left where it was.
-- `KU Kenya` and `KenyattaU Nairobi Kenya` are merged into `JKUAT Kenya`, which now holds 10
-  Kenyatta University affiliation strings (P.O. Box 43844, Nairobi) beside 5 for Jomo
-  Kenyatta University of Agriculture and Technology. Kenyatta University (Kahawa, Nairobi)
-  and JKUAT (Juja) are separate universities.
 
 ### Earlier on 2026-09-17 — before your answers
 
@@ -790,11 +797,20 @@ does. Step 1 has the detail.
 
 ---
 
-## Step 8 — Gia's lake-region data — built and answered 2026-09-17; closing runs left
+## Step 8 — Gia's lake-region data — done 2026-09-21
 
-**Answered 2026-09-17**: 21 of the 51 pairs accepted (20 renames), 30 rejected, 31
-coordinate decisions, rebuilt at 15:30. The closing runs, and two answers to confirm, are at
-the top of **Where this is up to**. The rest of this step is the record of how it was built.
+**Answered from 2026-09-17**: 21 of the 51 pairs accepted, 30 rejected, 31 coordinate
+decisions in the first pass, then the rest settled over the following days as step 9's town
+check raised what the country check could not see. Every label of hers is matched or kept
+deliberately separate, and every coordinate of hers is confirmed: none of the 141 `ok`
+coordinates comes from her counts file. The rest of this step is the record of how it was
+built.
+
+Two of its answers were corrected afterwards, and both are worth knowing about:
+`KU Kenya` and `KenyattaU Nairobi Kenya` were merged into `JKUAT Kenya` on 2026-09-17 and
+unmerged on 2026-09-18 — Kenyatta University (Kahawa) and JKUAT (Juja) are separate
+universities — and `MTTI Kendu Bay Kenya` was ticked at a point in Mombasa, 693 km from the
+town its label names, which is what step 9 was built to catch.
 
 `data/gia_final_data/` holds Gia's lake-region affiliations
 (`lake_region_source_affiliations_africa.csv`, the shape of deliverable 1: 338 rows, 211
@@ -937,6 +953,83 @@ identical outputs, and the dated files were deleted after `cmp` on the project.
 
 ---
 
+---
+
+## Step 9 — is the coordinate in the right TOWN — done 2026-09-21
+
+`R/check_coord_sanity.R` (step 2) tests the country and stops there. `MasenoU Maseno Kenya`
+sat in Nairobi and passed it; the LIN labels sat 98 km from Montpellier and passed it; and on
+2026-09-17 `MTTI Kendu Bay Kenya` — "Mawego Technical Training Institute, Kendu Bay, Kenya" —
+was ticked at Gia's point in **Mombasa, 693 km away**, because the sheet the answer was typed
+into said nothing about where the point was. That is the fault this step fixes.
+
+```bash
+Rscript R/check_coord_place.R     # -> output/review_coord_place.csv
+Rscript R/coord_review.R          # flagged labels arrive as `case = place` rows
+# answer in the sheet, save, close
+Rscript R/coord_review.R
+python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py
+```
+
+**`R/place_lookup.R`** holds the gazetteer and is sourced by the other two. It is
+`maps::world.cities`, 43,645 places, offline, already a dependency. Two directions:
+
+- **forward** — the places the text names, 1–3 word runs inside each comma field of the label
+  and its affiliation strings, looked up and restricted to the country the point is in. The
+  distance reported is the smallest over those names, so one bad match cannot raise a flag on
+  its own: any real place named nearby pulls it back down.
+- **reverse** — the town the point is actually nearest. Always available, and the evidence
+  that catches what the forward test cannot.
+
+Both are needed. The gazetteer has Kendu Bay (pop 441) but not Maseno, Mbita or Juja, and
+only 997 places in the USA, so 74 of the 324 labels cannot be forward-tested at all. They are
+counted and named as untestable on every run, never as clean.
+
+Flag threshold is **25 km**, one constant at the top of `R/check_coord_place.R`. A campus is
+routinely 10–25 km from the city it addresses.
+
+### What reaches the sheet, which is the point
+
+A flag nobody sees while ticking is not a flag. Three changes to `R/coord_review.R`:
+
+- **`place_check`, column S** — on *every* row that carries a coordinate, not just flagged
+  ones: "1.0 km from Mombasa, Kenya (pop 823,500); text names Kendu Bay, 693 km away". It sits
+  after `google_maps` so that every column letter the project documents — A, C, G, H, I, M, N,
+  Q, R — keeps its position.
+- **`case = place` rows**, carrying the coordinate as it stands, the same shape as a `sanity`
+  row. Their source columns are deliberately empty, so ticking one leaves the decisions file
+  exactly as it was and the note already on record is kept.
+- **status `FLAGGED - not in the town the text names`**, sorted to the top of the sheet.
+  Without it a flagged label that was already `decided` reads as `settled`, because it carries
+  the `yes` it was given before the sweep existed — which is exactly how MTTI was missed.
+
+**`checked` in column A** is the answer for a coordinate that is right anyway: it keeps the
+coordinate as `yes` does and appends an `accept_as_is`, which both sweeps honour, so the label
+stops being raised. A bare `yes` deliberately does **not** sign anything off — the row usually
+arrives already carrying one — and every run names the flagged rows that are ticked without
+`checked`.
+
+### What it found
+
+22 coordinates, all now settled. Wrong points nobody had seen: `CIRAD-EMVT France` 397 km from
+the Montpellier its text names, `ORSTOM France` at Marseille, `UO Burkina Faso` 167 km from
+Ouagadougou, a Johannesburg label sitting in Cape Town. Nine were right and carry a `checked`
+sign-off: a campus outside the city it addresses (`JKUAT Kenya` at Juja, `MoiU Eldoret Kenya`
+at Kesses, `NaLIRRI Uganda` at Namulonge, and others), or a gazetteer whose "Abuja" is 37 km
+from the Federal Capital City.
+
+Correcting `CIRAD-EMVT France` then raised a pair the sweep had never been able to see:
+`Campus international de Baillarguet France` 46 m away, merged on 2026-09-21. The earlier
+decision to keep those two apart had been made while one of them was 397 km out.
+
+### What it still cannot see
+
+Right town, wrong point. Nothing under 25 km is flagged, so an error inside a city is
+invisible: Kenyatta University at Kahawa and the centre of Nairobi are 13 km apart and both
+read as Nairobi.
+
+---
+
 ## After every change — rebuild and read the output
 
 **Save and close the sheet before running its script.** Each `*_review.R` rewrites its own
@@ -956,7 +1049,8 @@ names them. **A decision that did not apply is almost always a mistyped target**
 the guard against a silent no-op.
 
 `verify` runs 36 checks with an empty decisions file, 41 once it holds anything, 43 once
-`data/added_affiliations.csv` holds rows, and 49 once `data/gia_final_data/` is present. The
+`data/added_affiliations.csv` holds rows, 49 once `data/gia_final_data/` is present, and 50
+once the decisions file holds a `lake_relabel`. The
 extra five confirm your decisions landed; the 42nd confirms every replaced placeholder is
 gone; the 43rd that the additions file holds each `absent_review.xlsx` answer as often as the
 sheet does; the last six check Gia's rows (step 8). A rise from 36 to 41 to 43 to 49 is
@@ -975,7 +1069,8 @@ expected, not a regression.
 |---|---|---|
 | `label_rename` | **`R/label_review.R`**, from `data/label_review.xlsx` | renames everywhere; renaming A to B merges them |
 | `coordinate` | **`R/coord_review.R`**, from `data/coord_review.xlsx` | overrides the source files; sets `coord_status = decided` |
-| `affiliation_relabel` | you, in the CSV | moves one affiliation string onto a different label |
+| `affiliation_relabel` | you, in the CSV | moves one affiliation string onto a different label; leaves Gia's rows alone |
+| `lake_relabel` | you, in the CSV | the same, but moves every row carrying the string, Gia's included (added 2026-09-18) |
 | `token_replacement` | you, in the CSV | overrides an inferred us/uk expansion |
 | `accept_as_is` | you, in the CSV; or **`R/coord_review.R`**, appended from `absent` in column A of `coord_review.xlsx` | marks `reviewed = TRUE`; changes nothing. For a label with no coordinate it is the sign-off that keeps it that way |
 | `note_only` | you, in the CSV | records a note; marks reviewed |
@@ -1026,23 +1121,24 @@ every change (rule 2 in `CLAUDE.md`). So never run the old bulk-adopt path,
 `GEOCODING_NOTES.md` used to recommend: it would replace every decision in the file with 88
 proposals.
 
-### The review files at a glance — counts at 2026-09-17
+### The review files at a glance — counts at 2026-09-21
 
 | file | rows | what it is | answer goes |
 |---|---|---|---|
-| `review_label_duplicates.csv` | 109 | two labels that may be one place | `label_review.xlsx` |
-| `review_label_lumping.csv` | 101 | one label that may be several places | `label_review.xlsx` or the CSV |
-| `review_simple_conflicts.csv` | 10 | one string carrying two labels | `label_review.xlsx` |
-| `review_simple_lumping.csv` | 157 | strings per label | `label_review.xlsx` or the CSV |
+| `review_label_duplicates.csv` | 77 | two labels that may be one place — every one answered | `label_review.xlsx` |
+| `review_label_lumping.csv` | 95 | one label that may be several places; the granularity question, deliberately not pursued | `label_review.xlsx` or the CSV |
+| `review_simple_conflicts.csv` | 2 | one string carrying two labels; both are strings naming two institutions, left deliberately | `label_review.xlsx` |
+| `review_simple_lumping.csv` | 153 | strings per label; the same question, older form | `label_review.xlsx` or the CSV |
 | `review_lake_repairs.csv` | 62 | every reading the `Centre` and `Ð` repairs to Gia's rows produced | nothing, unless wrong |
 | `review_lake_overlap.csv` | 12 | Gia's rows on the 7 papers already present: dropped or added | `label_review.xlsx`, where it matters |
-| `review_lake_counts.csv` | 6 | her unused points, her labels without a coordinate, her n against her rows | `coord_review.xlsx` |
-| `review_coord_sanity.csv` | 0 | coordinate outside its country, or no country to test | `coord_review.xlsx`, or `accept_as_is` |
+| `review_lake_counts.csv` | 4 | her unused points, her labels without a coordinate, her n against her rows | `coord_review.xlsx` |
+| `review_coord_sanity.csv` | 0 | coordinate outside the country its text names | `coord_review.xlsx`, or `accept_as_is` |
+| `review_coord_place.csv` | 0 | coordinate not in the TOWN its text names (step 9) | `coord_review.xlsx`, or `checked` in column A |
 | `review_us_uk_tokens.csv` | 21 | inferred us/uk expansions | `token_replacement` |
 | `review_encoding_repairs.csv` | 411 | every encoding repair made | nothing, unless wrong |
 | `review_labels_collapsed.csv` | 9 | formatting-only label merges | nothing, unless wrong |
 | `review_unmatched_sources.csv` | 0 | paper with no affiliation | `added_affiliations.csv` (step 4) |
-| `decisions_report.csv` | 261 | did each decision apply? | read after every rebuild |
+| `decisions_report.csv` | 345 | did each decision apply? | read after every rebuild |
 
 `review_simple_lumping.csv` has long pipe-joined cells and `review_encoding_repairs.csv` is
 411 rows — grep them, do not `cat` them.
@@ -1051,8 +1147,9 @@ proposals.
 
 `aff_audit_plan.md`, `AFFILIATION_CLEANING_README.md` and `GEOCODING_NOTES.md` are the
 record of how the data got into this state. `review_missing_coords.csv` and
-`proposed_decisions_coords.csv` are superseded by the sheets. `R/tidy_affiliations.R` has
-never been run — use the Python.
+`proposed_decisions_coords.csv` are superseded by the sheets. `R/tidy_affiliations.R`, an R
+transcription that was never run, was deleted on 2026-09-21: the pipeline is
+`R/tidy_affiliations.py` and `R/verify_affiliations.py`.
 
 ---
 
@@ -1091,10 +1188,11 @@ never been run — use the Python.
 
 ### Known soft spots
 
-- `R/tidy_affiliations.R` has never been run. Treat its first execution as a test; if its
-  self-test or parity check fails, the baseline CSVs in `output/parity_baseline/` are the trusted
-  artefacts. R 4.6.1 is installed with `readxl`, `readr`, `dplyr`, `stringi`, `writexl`,
-  `tidyr` and `countrycode`; `openxlsx` is absent.
+- There is one implementation of the pipeline and it is Python. `R/tidy_affiliations.R` was
+  a transcription that was never executed and never mirrored the later changes; it was
+  deleted on 2026-09-21, and `output/parity_baseline/` — built for its self-test — is now
+  kept only as a record. R 4.6.1 is installed with `readxl`, `readr`, `dplyr`, `stringi`,
+  `writexl`, `tidyr`, `countrycode`, `maps` and `sf`; `openxlsx` is absent.
 - `pandas`, `xlrd` and `openpyxl` were installed 2026-09-03 and both Python steps run on
   this machine. Between 2026-08-24 and then they could not, which is why the R
   transcription exists.

@@ -135,7 +135,9 @@ re-read of 20 random cells against the original spreadsheet. All 36 pass.
 python3 R/tidy_affiliations.py && python3 R/verify_affiliations.py
 ```
 
-`R/tidy_affiliations.R` is a transcription of it. **It has never been run.** R was not
+`R/tidy_affiliations.R` was a transcription of it. **It was never run**, it never mirrored
+the later Python changes, and it was deleted on 2026-09-21; the paragraph below is kept as
+the record of what it was. R was not
 installed in the environment where this was written and neither apt nor CRAN was
 reachable, so it could not be tested. Do not assume it works. It carries two guards:
 

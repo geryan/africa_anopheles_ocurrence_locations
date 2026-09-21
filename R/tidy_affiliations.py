@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Reference implementation of the affiliation cleaning pipeline.
-Mirrored by R/tidy_affiliations.R.
+The only implementation: an R transcription existed but was never executed and
+# was deleted on 2026-09-21.
 """
 import pandas as pd, numpy as np, re, unicodedata, hashlib, math, os, json, collections
 
@@ -42,8 +43,8 @@ F_ADD  = f'{SRC}/data/added_affiliations.csv'      # rows version 3 never had; m
 
 DEC_COLS = ['decision_type', 'target', 'new_value', 'latitude', 'longitude',
             'note', 'decided_on']
-DEC_TYPES = {'token_replacement', 'affiliation_relabel', 'label_rename',
-             'coordinate', 'accept_as_is', 'note_only'}
+DEC_TYPES = {'token_replacement', 'affiliation_relabel', 'lake_relabel',
+             'label_rename', 'coordinate', 'accept_as_is', 'note_only'}
 
 DEC_REPORT = []                  # one row per decision: did it do anything?
 def dec_log(d, status, n_affected=0, message=''):
@@ -578,6 +579,41 @@ for d in DECISIONS:
             d['new_value'], 'decision: affiliation_relabel')
     v3.loc[hit, 'affiliation_simple'] = d['new_value']
     dec_log(d, 'applied', int(hit.sum()))
+
+# lake_relabel is affiliation_relabel without the exemption: it moves EVERY row
+# carrying the string, Gia's included.
+#
+# The exemption above stays, and is not something to work around - a relabel
+# written for spreadsheet rows is not an approval of a match with hers. This type
+# is how the opposite is said deliberately: the source filed this string under the
+# wrong label, and it moves whoever's row it is.
+#
+# It exists because nothing else could reach those rows. `affiliation_relabel`
+# skips them, and a `label_rename` takes the whole label with it - which is what
+# put ten Kenyatta University strings under `JKUAT Kenya` until the merge was
+# undone on 2026-09-18, leaving seven rows of "Jomo Kenyatta University of
+# Agriculture and Technology" text under `KenyattaU Nairobi Kenya`, all of them
+# Gia's, with no way to move them.
+#
+# Same position in the order as the relabel above: before label_rename, so a
+# string moved onto a label that is later merged follows the merge.
+for d in DECISIONS:
+    if d['decision_type'] != 'lake_relabel':
+        continue
+    if not d['target'] or not d['new_value']:
+        dec_log(d, 'bad_decision', 0, 'lake_relabel needs target and new_value')
+        continue
+    hit = v3.affiliation == d['target']
+    if not hit.any():
+        dec_log(d, 'no_match', 0, 'no row has that exact affiliation string')
+        continue
+    n_lake = int((hit & is_lake(v3.row_xlsx)).sum())
+    for i in np.where(hit)[0]:
+        log(v3.row_xlsx.iloc[i], 'affiliation_simple', v3.affiliation_simple.iloc[i],
+            d['new_value'], 'decision: lake_relabel')
+    v3.loc[hit, 'affiliation_simple'] = d['new_value']
+    dec_log(d, 'applied', int(hit.sum()),
+            '%d of %d are Gia\'s rows' % (n_lake, int(hit.sum())))
 
 RENAME = {}
 for d in DECISIONS:
