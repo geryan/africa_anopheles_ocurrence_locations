@@ -12,13 +12,14 @@ Everything after **Reference** is background.
 ## Where this is up to — 2026-09-21: nothing is open
 
 Every sheet is answered, both coordinate sweeps flag nothing, the label sweep has no open
-pair, and `python3 R/verify_affiliations.py` ends **50 checks, 0 failed**.
+pair, and `python3 R/verify_affiliations.py` ends **51 checks, 0 failed**.
 
 | | |
 |---|---|
 | `output/final/affiliations_complete.csv` | 1640 rows, 746 papers |
 | `output/final/affiliation_lookup.csv` | 1289 pairs |
-| `output/final/affiliation_simple_coords.csv` | 327 labels — 183 `decided`, 141 `ok`, 3 `absent`, 0 `missing`, 0 `conflict` |
+| `output/final/affiliation_simple_coords_with_notes.csv` | 327 labels — 183 `decided`, 141 `ok`, 3 `absent`, 0 `missing`, 0 `conflict` |
+| `output/final/affiliation_simple_coords.csv` | the same 327 rows, only `affiliation_simple`, `latitude`, `longitude` (split 2026-09-22) |
 | `data/affiliation_decisions.csv` | 345 decisions, all `applied` — 183 `coordinate`, 133 `label_rename`, 16 `accept_as_is`, 10 `affiliation_relabel`, 3 `lake_relabel` |
 | `data/label_review.xlsx` | 265 pairs: 150 applied, 115 rejected, none open |
 | `data/coord_review.xlsx` | 256 rows over 183 labels, every one settled |
@@ -472,7 +473,7 @@ suburb, and Guyana is a country in its own right.
 Montpellier and passed it clean. `One World Development Group, Florida` names no country at
 all and cannot be tested.
 
-The sweep is read-only and idempotent, and reads `output/final/affiliation_simple_coords.csv`. Re-run it
+The sweep is read-only and idempotent, and reads `output/final/affiliation_simple_coords_with_notes.csv`. Re-run it
 after any batch of merges, then re-run `coord_review.R` to refresh the open rows.
 
 ---
@@ -900,7 +901,7 @@ the same repair, whitespace, collapse and decision steps as every other row.
   `output/review_lake_counts.csv` names her unused points (`ILRI`, `MAFS`), her labels without
   a coordinate, and the n = 24 above.
 - **Without `data/gia_final_data/`** the build is byte-identical to the one before step 8,
-  and verify runs 43 checks.
+  and verify runs 44 checks (43 before the coordinate-file check of 2026-09-22).
 - `output/label_sources.csv` counts rows per label and how many are hers, for the sweep and
   the sheet.
 
@@ -1048,13 +1049,15 @@ names them. **A decision that did not apply is almost always a mistyped target**
 `output/decisions_report.csv` says which. `verify` fails the run on any of them, which is
 the guard against a silent no-op.
 
-`verify` runs 36 checks with an empty decisions file, 41 once it holds anything, 43 once
-`data/added_affiliations.csv` holds rows, 49 once `data/gia_final_data/` is present, and 50
-once the decisions file holds a `lake_relabel`. The
+`verify` runs 37 checks with an empty decisions file, 42 once it holds anything, 44 once
+`data/added_affiliations.csv` holds rows, 50 once `data/gia_final_data/` is present, and 51
+once the decisions file holds a `lake_relabel`. One check always runs that was added on
+2026-09-22: `affiliation_simple_coords.csv` must be exactly the first three columns of
+`affiliation_simple_coords_with_notes.csv`. The
 extra five confirm your decisions landed; the 42nd confirms every replaced placeholder is
 gone; the 43rd that the additions file holds each `absent_review.xlsx` answer as often as the
-sheet does; the last six check Gia's rows (step 8). A rise from 36 to 41 to 43 to 49 is
-expected, not a regression.
+sheet does; the last six check Gia's rows (step 8). A rise from 37 to 42 to 44 to 50 to 51
+is expected, not a regression.
 
 ---
 

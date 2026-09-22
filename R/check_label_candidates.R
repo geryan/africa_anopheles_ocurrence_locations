@@ -100,7 +100,7 @@ deliverable <- function(name) {
   if (!file.exists(f)) stop(f, " not found; run python3 R/tidy_affiliations.py first")
   f
 }
-coords_file <- deliverable("affiliation_simple_coords.csv")
+coords_file <- deliverable("affiliation_simple_coords_with_notes.csv")
 lookup_file <- deliverable("affiliation_lookup.csv")
 
 message("coords: ", coords_file, "\nlookup: ", lookup_file)

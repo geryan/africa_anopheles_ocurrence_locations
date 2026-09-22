@@ -8,14 +8,15 @@ Reference heading is background. There is no open work — see below.
 
 **There is no open work.** Every sheet is fully answered, both coordinate sweeps flag
 nothing, the label sweep has no open pair, and `python3 R/verify_affiliations.py` ends
-**50 checks, 0 failed**. `NEXT_STEPS.md` steps 1 to 9 are all done and are kept as the
+**51 checks, 0 failed**. `NEXT_STEPS.md` steps 1 to 9 are all done and are kept as the
 record of how each was done.
 
 | | |
 |---|---|
 | `output/final/affiliations_complete.csv` | 1640 rows, 746 papers |
 | `output/final/affiliation_lookup.csv` | 1289 pairs |
-| `output/final/affiliation_simple_coords.csv` | 327 labels — **183 `decided`, 141 `ok`, 3 `absent`, 0 `missing`, 0 `conflict`** |
+| `output/final/affiliation_simple_coords_with_notes.csv` | 327 labels — **183 `decided`, 141 `ok`, 3 `absent`, 0 `missing`, 0 `conflict`** |
+| `output/final/affiliation_simple_coords.csv` | the same 327 rows, only `affiliation_simple`, `latitude`, `longitude` |
 | `data/affiliation_decisions.csv` | **345 decisions, all `applied`**: 183 `coordinate`, 133 `label_rename`, 16 `accept_as_is`, 10 `affiliation_relabel`, 3 `lake_relabel` |
 | `data/label_review.xlsx` | 265 pairs: 150 applied, 115 rejected, none open |
 | `data/coord_review.xlsx` | 256 rows over 183 labels, every one settled |
@@ -25,6 +26,17 @@ record of how each was done.
 
 **No `ok` coordinate comes from Gia's counts file.** Each of her points was either
 confirmed by hand, which made it `decided`, or replaced when her label was merged.
+
+**Deliverable 3 is two files since 2026-09-22**, on the owner's instruction.
+`affiliation_simple_coords_with_notes.csv` is what `affiliation_simple_coords.csv` used to
+be, all seven columns, and it is the file every script reads. `affiliation_simple_coords.csv`
+is now the same rows cut to `affiliation_simple`, `latitude` and `longitude`, written from
+the same frame at `R/tidy_affiliations.py:837`. Verify gained one check, which always runs:
+the three-column file must be exactly the first three columns of the other, row for row. It
+was made to fail in a sandbox by a stale seven-column file, one changed latitude and one
+dropped row. `output/final/metadata.txt` is the owner's standalone description of the
+columns, for handing on with the CSVs; `README.txt` is the project's own note. Neither is
+generated.
 
 ### What was built in the last three days, and why
 
@@ -290,7 +302,7 @@ the sheet never shows. Expected country from both the label and its affiliation 
 actual country from `maps::map.where`, then `sf::st_distance` to the expected country's
 polygon with a **10 km** coastal tolerance. **17 of 289 flagged** on its first run into
 `output/review_coord_sanity.csv`, worst-first, one Google Maps link per row. Idempotent;
-reads `output/final/affiliation_simple_coords.csv`, so re-run it after any batch of merges. On 2026-09-10
+reads `output/final/affiliation_simple_coords_with_notes.csv`, so re-run it after any batch of merges. On 2026-09-10
 it flagged 15 of 284, all `coord_status = ok` rows, none of the owner's `decided` ones, and
 all 15 were settled that day — 13 given a corrected coordinate, 2 signed off with
 `accept_as_is`. After step 5 on 2026-09-11 it flagged 3 of 296, all `no_expected_country` —
@@ -344,6 +356,8 @@ geocoding the author affiliations of each source paper. Three deliverables:
 1. every (paper, affiliation, affiliation_simple) row — `output/final/affiliations_complete.csv`
 2. affiliation → affiliation_simple lookup — `output/final/affiliation_lookup.csv`
 3. affiliation_simple → latitude/longitude — `output/final/affiliation_simple_coords.csv`
+   (three columns), and `affiliation_simple_coords_with_notes.csv` (the same rows plus
+   `coord_status`, `note`, `coord_source`, `n_rows`; the one every script reads)
 
 `affiliation_simple` is a short label (`IRD France`, `MRTC Mali`) that unifies the many
 long-form strings denoting one place. It is the join key for coordinates.
@@ -598,7 +612,7 @@ Rscript R/absent_review.R           # affiliations recorded ABSENT, via data/abs
 Rscript R/label_review.R            # label merges, via data/label_review.xlsx
 Rscript R/coord_review.R            # coordinate decisions, via data/coord_review.xlsx
 python3 R/tidy_affiliations.py      # rebuild all outputs
-python3 R/verify_affiliations.py    # 50 assertions; exits non-zero on failure
+python3 R/verify_affiliations.py    # 51 assertions; exits non-zero on failure
 ```
 
 Run `label_review.R` before `coord_review.R`: a merge patches the coordinate sheet, and
@@ -610,15 +624,18 @@ output exactly (1273 rows, 1002 lookup pairs, 398 labels, 1174 logged changes,
 coord_status 262 ok / 88 missing / 29 conflict / 19 absent) and verify passes.
 
 **The check count changes as work proceeds and that is correct.** With no decisions the
-suite runs 36 checks; once `data/affiliation_decisions.csv` holds any decisions it runs
-41, the extra five confirming those decisions landed; once `data/added_affiliations.csv`
-holds rows it runs 43, the two extra confirming every replaced placeholder is gone and that
+suite runs 37 checks (36 until 2026-09-22, when the check that the three-column coordinate
+file matches the `_with_notes` one was added; it always runs); once
+`data/affiliation_decisions.csv` holds any decisions it runs
+42, the extra five confirming those decisions landed; once `data/added_affiliations.csv`
+holds rows it runs 44, the two extra confirming every replaced placeholder is gone and that
 the file holds each `absent_review.xlsx` answer as often as the sheet does; once
-`data/gia_final_data/` is present it runs 49, six more for Gia's rows; and 50 once the
+`data/gia_final_data/` is present it runs 50, six more for Gia's rows; and 51 once the
 decisions file holds a `lake_relabel`, the extra one asserting that every row carrying that
 string — Gia's included, so it is checked against the whole of deliverable 1 — sits under the
-label the decision names. A rise from 36 to 41 to 43 to 49 to 50 is expected, not a
-regression.
+label the decision names. A rise from 37 to 42 to 44 to 50 to 51 is expected, not a
+regression. The "42nd" and "43rd" checks named in this file are names from when each was
+added, not positions in the output.
 
 `R/coord_review.R` is the spreadsheet loop for coordinates: it builds
 `data/coord_review.xlsx` (one row per candidate coordinate, an `accepted` column you fill
@@ -796,11 +813,15 @@ R/
   sources_to_check.R            produced output/twatasha_todo.csv
   unique_affils.R, reseach_locations.R   round-1 scripts, historical
 output/
-  final/                        THE THREE DELIVERABLES, and nothing else. Has its
-                                own README.txt. Everything below is working files
+  final/                        THE DELIVERABLES, and nothing else. Has its own
+                                README.txt (the project's note) and metadata.txt
+                                (the standalone column description, the owner's).
+                                Everything below is working files
     affiliations_complete.csv        deliverable 1 (no date stamp since 2026-09-17)
     affiliation_lookup.csv           deliverable 2
-    affiliation_simple_coords.csv    deliverable 3
+    affiliation_simple_coords.csv    deliverable 3: label, latitude, longitude
+    affiliation_simple_coords_with_notes.csv   deliverable 3 with coord_status, note,
+                                     coord_source, n_rows; what every script reads
   decisions_report.csv          did each decision apply?
   diff_report_20260817.csv      every changed cell; 1880 rows, read only with grep
   review_encoding_repairs.csv   411 rows; read only with grep

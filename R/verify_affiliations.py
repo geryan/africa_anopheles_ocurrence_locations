@@ -8,7 +8,7 @@ OUT   = os.path.join(SRC, 'output')          # reports and review lists
 FINAL = os.path.join(OUT, 'final')            # the three deliverables
 D1 = pd.read_csv(f'{FINAL}/affiliations_complete.csv', dtype=str)
 D2 = pd.read_csv(f'{FINAL}/affiliation_lookup.csv', dtype=str)
-D3 = pd.read_csv(f'{FINAL}/affiliation_simple_coords.csv', dtype=str)
+D3 = pd.read_csv(f'{FINAL}/affiliation_simple_coords_with_notes.csv', dtype=str)
 todo = pd.read_csv(f'{SRC}/output/twatasha_todo.csv', dtype=str)
 orig = pd.read_excel(f'{SRC}/data/twatasha_final_data/Affiliation spreadsheet_version 3. 26 Sep. 2024.xlsx', dtype=str)
 orig.columns = [c.strip() for c in orig.columns]
@@ -218,6 +218,14 @@ check('deliverable 2 is exactly the distinct pairs of deliverable 1', p1 == p2,
       f'{len(p1 ^ p2)} symmetric difference')
 check('deliverable 2 has no duplicate rows', not D2.duplicated(['affiliation_simple', 'affiliation']).any())
 check('deliverable 3 keys are unique', not D3.affiliation_simple.duplicated().any())
+# affiliation_simple_coords.csv is the with_notes file cut to three columns:
+# same rows, same order, same text.
+_d3n = pd.read_csv(f'{FINAL}/affiliation_simple_coords_with_notes.csv', dtype=str, keep_default_na=False)
+_d3s = pd.read_csv(f'{FINAL}/affiliation_simple_coords.csv', dtype=str, keep_default_na=False)
+_c3 = ['affiliation_simple', 'latitude', 'longitude']
+check('affiliation_simple_coords.csv is exactly the three coordinate columns of the with_notes file',
+      list(_d3s.columns) == _c3 and _d3s.equals(_d3n[_c3]),
+      f'columns {list(_d3s.columns)}, {len(_d3s)} rows against {len(_d3n)}')
 check('deliverable 3 covers every affiliation_simple in deliverable 1',
       set(D3.affiliation_simple) == set(D1.affiliation_simple.dropna()),
       f'{len(set(D3.affiliation_simple) ^ set(D1.affiliation_simple.dropna()))} difference')

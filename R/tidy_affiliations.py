@@ -834,7 +834,10 @@ for lbl, (la, lo, nt, d) in COORD_DECISION.items():
 
 D3['n_rows'] = D3.affiliation_simple.map(v3.affiliation_simple.value_counts()).fillna(0).astype(int)
 D3 = D3.drop(columns='lk')
-D3.to_csv(f'{FINAL}/affiliation_simple_coords.csv', index=False, encoding='utf-8')
+D3.to_csv(f'{FINAL}/affiliation_simple_coords_with_notes.csv', index=False, encoding='utf-8')
+# The same labels and coordinates without the status and provenance columns.
+D3[['affiliation_simple', 'latitude', 'longitude']].to_csv(
+    f'{FINAL}/affiliation_simple_coords.csv', index=False, encoding='utf-8')
 
 # ------------------------------------- accept_as_is / note_only -------------
 REVIEWED = set()

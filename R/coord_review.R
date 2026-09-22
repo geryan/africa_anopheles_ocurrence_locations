@@ -57,7 +57,7 @@ F_PROPOSED  <- file.path(root, "output", "proposed_coords_missing88_20260818.csv
 F_CONFLICTS <- file.path(root, "output", "review_coord_conflicts.csv")
 F_SANITY    <- file.path(root, "output", "review_coord_sanity.csv")
 F_PLACE     <- file.path(root, "output", "review_coord_place.csv")
-F_COORDS    <- file.path(root, "output", "final", "affiliation_simple_coords.csv")
+F_COORDS    <- file.path(root, "output", "final", "affiliation_simple_coords_with_notes.csv")
 F_LOOKUP    <- file.path(root, "output", "final", "affiliation_lookup.csv")
 F_LAKE_ROWS   <- file.path(root, "data", "gia_final_data", "lake_region_source_affiliations_africa.csv")
 F_LAKE_COUNTS <- file.path(root, "data", "gia_final_data", "lake_region_source_counts.csv")

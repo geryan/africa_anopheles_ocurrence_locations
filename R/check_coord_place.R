@@ -56,7 +56,7 @@ source(file.path(root, "R", "place_lookup.R"))
 
 THRESHOLD_KM <- 25   # a campus is routinely 10-25 km from the city it addresses
 
-F_COORDS <- file.path(root, "output", "final", "affiliation_simple_coords.csv")
+F_COORDS <- file.path(root, "output", "final", "affiliation_simple_coords_with_notes.csv")
 F_LOOKUP <- file.path(root, "output", "final", "affiliation_lookup.csv")
 F_DEC    <- file.path(root, "data", "affiliation_decisions.csv")
 OUT_FILE <- file.path(root, "output", "review_coord_place.csv")

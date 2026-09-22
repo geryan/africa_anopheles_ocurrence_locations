@@ -126,7 +126,7 @@ join_key <- function(s) {
 
 # --- the labels as they stand --------------------------------------------------
 
-d3 <- read_csv(deliverable("affiliation_simple_coords.csv"),
+d3 <- read_csv(deliverable("affiliation_simple_coords_with_notes.csv"),
                col_types = cols(.default = col_character()), progress = FALSE) %>%
   mutate(n_rows = suppressWarnings(as.integer(n_rows)))
 

@@ -10,7 +10,7 @@
 # owner and are made through data/coord_review.xlsx (see CLAUDE.md rule 3/4).
 #
 # Method
-#   1. Keep the rows of output/final/affiliation_simple_coords.csv that carry a
+#   1. Keep the rows of output/final/affiliation_simple_coords_with_notes.csv that carry a
 #      coordinate (coord_status ok or decided).
 #   2. Expected country: parse trailing country token(s) out of
 #      affiliation_simple, and independently out of that label's affiliation
@@ -44,7 +44,7 @@ deliverable <- function(name) {
   if (!file.exists(f)) stop(f, " not found; run python3 R/tidy_affiliations.py first")
   f
 }
-coords_file <- deliverable("affiliation_simple_coords.csv")
+coords_file <- deliverable("affiliation_simple_coords_with_notes.csv")
 lookup_file <- deliverable("affiliation_lookup.csv")
 out_file    <- "output/review_coord_sanity.csv"
 
